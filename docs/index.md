@@ -1,0 +1,49 @@
+# Neuroimaging Workflows & Procedures
+
+Personal reference documentation for neuroimaging research — everything from raw data to publication-ready figures.
+
+## What is this?
+
+A living knowledge base of **how I do things** — step-by-step procedures, code snippets, system context, and project records for neuroimaging research. Built so future-me, collaborators, and AI agents can reproduce workflows without re-discovering them from scratch.
+
+## Why this exists
+
+This site has four jobs:
+
+1. Remember workflows I use often but do not want to re-figure out every time.
+2. Give AI coding/research agents enough context to work safely and effectively.
+3. Provide shareable instructions for colleagues who ask how to do specific tasks.
+4. Preserve project-level evidence of systems, tools, and workflows I have built or supported.
+
+## Quick Navigation
+
+| Section | What's in it |
+|---------|-------------|
+| [Getting Started](getting-started/index.md) | Local setup, machines, fileshares, software |
+| [Experiments](experiments/index.md) | fMRI QC tasks (checkerboard, motion localizer, motor), Psychtoolbox tips |
+| [Data Management](data-management/index.md) | Data transfer, BIDS conversion, XNAT |
+| [Preprocessing](preprocessing/index.md) | fMRIPrep, FreeSurfer, MELD Graph, custom steps |
+| [Quality Control](quality-control/index.md) | MRIQC, visual QC checklists |
+| [Analysis](analysis/index.md) | GLM, RSA, ridge regression, encoding models, connectivity, searchlight |
+| [Visualization](visualization/index.md) | Freeview, surface viz, Blender, figures, 3D printing |
+| [Infrastructure](hpc/index.md) | HPC / Jubail, Docker / Singularity, scripting |
+| [Projects](projects/index.md) | ARI, CCAD epilepsy — project-specific records and workflows |
+| [Reference](reference/index.md) | Cheatsheet, troubleshooting, glossary |
+
+## How to use locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Serve with live reload
+mkdocs serve
+
+# Build static site
+mkdocs build
+```
+
+The site will be at `http://127.0.0.1:8000` and auto-reloads on any file change.
+
+!!! tip "Contributing new docs"
+    See [AI_CONTEXT.md](https://github.com/putiw/wpdocs/blob/main/AI_CONTEXT.md) for a prompt you can give any AI agent to help you document a new workflow into this site.

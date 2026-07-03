@@ -1,0 +1,182 @@
+site_name: Neuroimaging Workflows & Procedures
+site_description: Personal reference documentation for neuroimaging research workflows, HPC, containerization, analysis, and visualization.
+site_author: Puti
+repo_url: https://github.com/putiw/wpdocs
+repo_name: putiw/wpdocs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - tags
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pw1246
+
+nav:
+  - Home: index.md
+
+  - Workflows:
+    - Overview: workflows/index.md
+
+  - Systems:
+    - Overview: systems/index.md
+
+  - Information:
+    - Overview: information/index.md
+    - Environment Concepts: information/environment.md
+    - Python Environments: information/python-environments.md
+
+  - Methods:
+    - Overview: methods/index.md
+
+  - Getting Started:
+    - Overview: getting-started/index.md
+    - Workstation Setup: getting-started/workstation-setup.md
+    - Machines & Fileshares: getting-started/machines-and-fileshares.md
+    - Software Installation: getting-started/software-installation.md
+
+  - Experiments:
+    - Overview: experiments/index.md
+    - Psychtoolbox on the Scanner iMac: experiments/psychtoolbox-tips.md
+    - Checkerboard HRF: experiments/checkerboard.md
+    - Motion Localizer: experiments/motion-localizer.md
+    - Six-Fingers Execution: experiments/six-fingers-execution.md
+
+  - Data Management:
+    - Overview: data-management/index.md
+    - Data Transfer & Sync: data-management/data-transfer.md
+    - BIDS Conversion: data-management/bids-conversion.md
+    - dcm2bids Config Files: data-management/dcm2bids-config.md
+    - Data Organization: data-management/data-organization.md
+    - XNAT:
+      - XNAT Overview: data-management/xnat-overview.md
+      - XNAT Pipelines: data-management/xnat-pipelines.md
+      - Uploading Resources: data-management/xnat-upload-resources.md
+      - ARI Box Archive: data-management/ari-box-archive.md
+
+  - Preprocessing:
+    - Overview: preprocessing/index.md
+    - fMRIPrep: preprocessing/fmriprep.md
+    - fMRIPrep on Jubail: preprocessing/fmriprep-jubail.md
+    - FreeSurfer: preprocessing/freesurfer.md
+    - MELD Graph: preprocessing/meld-graph.md
+    - Custom Steps: preprocessing/custom-steps.md
+
+  - Quality Control:
+    - Overview: quality-control/index.md
+    - MRIQC Individual: quality-control/mriqc-individual.md
+    - MRIQC Group: quality-control/mriqc-group.md
+    - Visual QC: quality-control/visual-qc.md
+
+  - Analysis:
+    - Overview: analysis/index.md
+    - GLM: analysis/glm.md
+    - RSA: analysis/rsa.md
+    - Ridge Regression: analysis/ridge-regression.md
+    - Encoding Models: analysis/encoding-models.md
+    - Connectivity: analysis/connectivity.md
+    - ROI Analysis: analysis/roi-analysis.md
+    - Searchlight: analysis/searchlight.md
+    - Statistics: analysis/statistics.md
+
+  - Visualization:
+    - Overview: visualization/index.md
+    - Freeview: visualization/freeview.md
+    - Surface Visualization: visualization/surface-viz.md
+    - Blender Brain Models: visualization/blender.md
+    - Figure Creation: visualization/figures.md
+    - 3D Brain Printing: visualization/3d-brain-printing.md
+
+  - Infrastructure:
+    - HPC / Jubail:
+      - HPC Overview: hpc/index.md
+      - Cluster Basics: hpc/jubail-basics.md
+      - Job Submission: hpc/job-submission.md
+      - Environment Modules: hpc/environment-modules.md
+      - Data Storage & Scratch: hpc/data-storage.md
+    - Containers:
+      - Containers Overview: containers/index.md
+      - Docker Basics: containers/docker-basics.md
+      - Building Images: containers/building-images.md
+      - Singularity / Apptainer: containers/singularity.md
+      - Containers on HPC: containers/containers-on-hpc.md
+    - Scripting:
+      - Scripting Overview: scripting/index.md
+      - Bash Recipes: scripting/bash-recipes.md
+      - Python Utilities: scripting/python-utilities.md
+      - Workflow Orchestration: scripting/workflow-orchestration.md
+
+  - Projects:
+    - Overview: projects/index.md
+    - myPhysio: projects/myphysio.md
+    - ARI: projects/ari.md
+    - CCAD Epilepsy:
+      - CCAD Overview: ccad/index.md
+      - Project Overview: projects/ccad-epilepsy.md
+      - VPN & VDI Access: ccad/vpn-access.md
+      - Getting Data from CCAD: ccad/data-from-ccad.md
+      - BrainLab: ccad/brainlab.md
+      - AVM Language Mapping Pilot: ccad/avm-language-mapping-pilot.md
+      - Language Mapping Case Workflow: ccad/language-mapping-case.md
+      - Post-Surgical Reconstruction Pipeline: ccad/postsurgical-fastsurfer-pipeline.md
+      - Epilepsy BIDS Conversion: ccad/epilepsy-bids.md
+      - MAP18 Pipeline: ccad/epilepsy-map18-pipeline.md
+      - Contacts & Systems: ccad/server-paths.md
+
+  - Reference:
+    - Overview: reference/index.md
+    - Commands Cheatsheet: reference/cheatsheet.md
+    - Troubleshooting: reference/troubleshooting.md
+    - Glossary: reference/glossary.md
+    - External Resources: reference/resources.md
