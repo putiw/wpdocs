@@ -62,6 +62,7 @@ The main parts are:
 | `admin.myphysio.care` | Next.js admin dashboard | PM2 process `myphysio-web`, port 3000, behind nginx |
 | `app.myphysio.care` | **Production** patient PWA (Expo web export) | `/var/www/myphysio-app` → symlink into `/var/www/myphysio-app-releases/<ts>` |
 | `dev.myphysio.care` | **Dev/testing** patient PWA | `/var/www/myphysio-app-dev` → symlink into `/var/www/myphysio-app-dev-releases/<ts>` |
+| `dev.myphysio.care/admin/login` | **Dev/testing** Next.js admin dashboard | PM2 process `myphysio-web-dev`, port 3001, nginx `/admin` proxy, built with `NEXT_PUBLIC_ADMIN_BASE_PATH=/admin` |
 
 All have Let's Encrypt certificates (certbot).
 
@@ -79,11 +80,22 @@ All have Let's Encrypt certificates (certbot).
 | Prod checkout | `/var/www/myphysio-monorepo` (branch `main`) |
 | Prod deploy script | `deploy.sh` (repo root): pull, pnpm install, build, PM2 reload, expo export, SW build-ID injection, gzip+brotli precompress, atomic symlink switch |
 
-**Dev deploys are manual.** From the dev checkout on the server:
+**Dev PWA deploys are manual.** From the dev checkout on the server:
 
 ```bash
 cd /var/www/myphysio-monorepo-dev   # branch: dev
 bash deploy-dev.sh                   # PWA only (no PM2/web-admin steps), ~2 min
+```
+
+**Dev admin deploys are separate** because `deploy-dev.sh` only publishes the patient PWA. The dev admin dashboard is served at `https://dev.myphysio.care/admin/login` by PM2 process `myphysio-web-dev` on port 3001, with nginx proxying `/admin` and `/admin/` to that process. Build/restart it from the server dev checkout with:
+
+```bash
+cd /var/www/myphysio-monorepo-dev
+git pull origin dev
+corepack pnpm install
+NEXT_PUBLIC_ADMIN_BASE_PATH=/admin corepack pnpm --filter @myphysio/web run build
+cd apps/web
+PORT=3001 NEXT_PUBLIC_ADMIN_BASE_PATH=/admin pm2 restart myphysio-web-dev --update-env
 ```
 
 **Rollback:** releases are kept in `/var/www/myphysio-app-releases/`; point the symlink back at a known-good release:
@@ -314,9 +326,9 @@ How an AI agent should work on this project. This flow has been used successfull
 ### How to test
 
 1. Type-check on the server after every change set: `cd /var/www/myphysio-monorepo-dev && corepack pnpm type-check` — must be 0 errors before committing. For mobile-only work, also run `corepack pnpm --filter @myphysio/mobile test -- --runInBand`.
-2. Commit on `dev` with a descriptive message, push, then deploy to dev: `bash deploy-dev.sh` (run via `nohup ... &` and poll the log — SSH tool calls time out around 45 s).
-3. Verify the deploy: `tail /tmp/deploy-dev.log`, check the release symlink, curl key URLs, and check the built bundle for regressions (e.g., dual-React: `grep -c '"18\.3\.1"' entry-*.js` must be 0).
-4. Ask the user to test on `https://dev.myphysio.care` (phone testing matters for PWA/offline features). Do not promote to prod without user sign-off.
+2. Commit on `dev` with a descriptive message, push, then deploy the relevant dev target: patient PWA uses `bash deploy-dev.sh` (run via `nohup ... &` and poll the log); admin dashboard uses the `NEXT_PUBLIC_ADMIN_BASE_PATH=/admin` build + `myphysio-web-dev` PM2 restart shown above.
+3. Verify the deploy: for PWA, `tail /tmp/deploy-dev.log`, check the release symlink, curl key URLs, and check the built bundle for regressions (e.g., dual-React: `grep -c '"18\.3\.1"' entry-*.js` must be 0). For admin, curl `https://dev.myphysio.care/admin/login`, confirm `/admin/_next/...` assets return 200, and check `pm2 ls` shows `myphysio-web-dev` online.
+4. Ask the user to test on `https://dev.myphysio.care` for PWA work or `https://dev.myphysio.care/admin/login` for admin work. Do not promote to prod without user sign-off.
 
 ### How to deploy to production
 
