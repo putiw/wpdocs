@@ -67,7 +67,7 @@ All have Let's Encrypt certificates (certbot).
 
 ## Branch & Deploy Model
 
-**Branches:** `dev` is the working branch; `main` is production. Ship by fast-forwarding: `git push origin dev:main`.
+**Branches:** `dev` is the working branch; `main` is production. Promote to production with a PR from `dev` to `main` so GitHub Actions can run before the VPS poller sees the change. Do not use direct `git push origin dev:main` once the `Protect main` ruleset is active.
 
 **Production deploys are pull-based.** There is NO GitHub Actions deploy anymore (the runner→VPS SSH was unreliable; the workflow file was deleted). Instead a cron poller on the VPS checks `origin/main` every minute and self-deploys on change:
 
@@ -166,7 +166,7 @@ Expected token scopes include at least `repo`, `read:org`, `workflow`, and `proj
 
 ### After production promotion
 
-When `dev` is promoted to `main` with `git push origin dev:main`, wait for the VPS poller to deploy, then verify production. After verification, comment on the issue with the production state and close it:
+When `dev` is promoted to `main` through a PR merge, wait for the VPS poller to deploy, then verify production. After verification, comment on the issue with the production state and close it:
 
 ```bash
 gh issue comment <issue_number> --repo my-Physio/myPhysio-merge \
@@ -322,12 +322,16 @@ How an AI agent should work on this project. This flow has been used successfull
 
 ```bash
 # from the dev checkout, after user approval:
-git push origin dev:main        # fast-forward only
+gh pr create --base main --head dev --repo my-Physio/myPhysio-merge \
+  --title "Promote dev to main" \
+  --body "Promote the tested dev branch to production."
+gh pr checks --watch
+gh pr merge --merge
 # the VPS poller deploys automatically within ~1 minute
 tail -f /var/log/myphysio-deploy.log   # wait for "finished rc=0"
 ```
 
-Then verify prod: bundle hash matches the dev-tested one, `https://app.myphysio.care/` returns 200, brotli serving works, `pm2 ls` shows `myphysio-web` online. If broken, roll back the symlink (see Branch & Deploy Model) first, debug second.
+Then verify prod: bundle hash matches the dev-tested one, `https://app.myphysio.care/` returns 200, brotli serving works, `pm2 ls` shows `myphysio-web` online. If broken, roll back the symlink (see Branch & Deploy Model) first, debug second. Do not merge the promotion PR until CI is green.
 
 ### How to log / observe
 
