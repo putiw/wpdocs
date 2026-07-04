@@ -40,7 +40,7 @@ Tabs follow the neuroimaging pipeline: acquire → manage → process → analyz
 | Workflows | `docs/workflows/` | Task-oriented "how do I..." entry points |
 | Systems | `docs/systems/` | Access, addresses, mounted paths, and system ownership |
 | Infrastructure | `docs/hpc/`, `docs/containers/`, `docs/scripting/` | HPC/Jubail, Docker/Singularity, bash/python scripting |
-| Projects | `docs/projects/`, `docs/ccad/` | ARI, CCAD epilepsy (with sub-pages for VPN, pipeline, etc.) |
+| Projects | `docs/projects/`, `docs/ccad/` | ARI, Scanner QC, CCAD epilepsy (with sub-pages for VPN, pipeline, etc.) |
 | Reference | `docs/reference/` | Cheatsheet, troubleshooting, glossary, external resources |
 
 ## How to Add Documentation

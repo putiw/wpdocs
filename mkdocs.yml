@@ -161,6 +161,7 @@ nav:
     - Overview: projects/index.md
     - myPhysio: projects/myphysio.md
     - ARI: projects/ari.md
+    - Scanner QC: projects/scanner-qc.md
     - CCAD Epilepsy:
       - CCAD Overview: ccad/index.md
       - Project Overview: projects/ccad-epilepsy.md

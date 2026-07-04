@@ -13,6 +13,7 @@ Use the pipeline tabs (Data Management, Preprocessing, Analysis, etc.) when the 
 | [myPhysio](myphysio.md) | Physiotherapy web/mobile platform, Supabase backend, deployment notes, mobile APK workflow, and feature history. |
 | [ARI](ari.md) | XNAT archive structure, Box backup, Monai scripts, validation/staging logic, and data management support. |
 | [CCAD Epilepsy](ccad-epilepsy.md) | CCAD access, PACS/OsiriX data export, epilepsy BIDS conversion, MAP18 pipeline, MELD Graph. Has its own sub-pages for VPN, BrainLab, and pipeline details. |
+| [Scanner QC](scanner-qc.md) | Scanner/protocol QC project using checkerboard HRF, breathhold, flex/tap, fMRIPrep outputs, and the `Scans.xlsx` scan inventory. |
 
 ## Project Backlog
 
