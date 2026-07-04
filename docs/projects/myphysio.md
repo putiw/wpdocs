@@ -262,7 +262,17 @@ pnpm --filter @myphysio/web dev
 pnpm --filter @myphysio/mobile dev
 ```
 
-Useful checks: `pnpm build`. **Caveat (known issue):** the root `pnpm type-check` and `pnpm lint` are currently **no-ops** — turbo declares the tasks but no package has a backing `type-check`/`lint` script, so they exit 0 while checking nothing. Until that's fixed, type-check directly: `cd apps/mobile && npx tsc --noEmit` (mobile is clean). Note `apps/web`'s `tsc --noEmit` currently FAILS on React 18/19 type conflicts and only builds because `next.config.js` sets `typescript.ignoreBuildErrors: true` — a tracked repo-health issue, not a green baseline. Also use `corepack pnpm` (the repo pins `pnpm@8.15.0`; a newer global pnpm against the v8 lockfile can misbehave). Mobile tests: `cd apps/mobile && npx jest`.
+Useful checks: use `corepack pnpm` because the repo pins `pnpm@8.15.0`; a newer global pnpm against the v8 lockfile can misbehave. Current repo-health checks are:
+
+```bash
+corepack pnpm install
+corepack pnpm type-check
+corepack pnpm lint
+corepack pnpm --filter @myphysio/mobile test -- --runInBand
+corepack pnpm --filter @myphysio/web build
+```
+
+`corepack pnpm type-check` now runs real package-level tasks for web, mobile, and shared packages. `corepack pnpm lint` runs web lint and shared-package TypeScript checks; mobile ESLint has a larger existing baseline and is intentionally a documented no-op until that baseline is addressed. `apps/web` TypeScript and Next lint are now enforced during `next build`.
 
 Android APK build automation: `apps/mobile/scripts/build-android.sh` (local EAS builds on the VPS, APK served from `https://myphysio.care/downloads/myphysio.apk`). iOS local-device notes: `apps/mobile/IOS_SETUP.md`.
 
@@ -303,7 +313,7 @@ How an AI agent should work on this project. This flow has been used successfull
 
 ### How to test
 
-1. Type-check on the server after every change set: `cd /var/www/myphysio-monorepo-dev/apps/mobile && npx tsc --noEmit` — must be 0 errors before committing.
+1. Type-check on the server after every change set: `cd /var/www/myphysio-monorepo-dev && corepack pnpm type-check` — must be 0 errors before committing. For mobile-only work, also run `corepack pnpm --filter @myphysio/mobile test -- --runInBand`.
 2. Commit on `dev` with a descriptive message, push, then deploy to dev: `bash deploy-dev.sh` (run via `nohup ... &` and poll the log — SSH tool calls time out around 45 s).
 3. Verify the deploy: `tail /tmp/deploy-dev.log`, check the release symlink, curl key URLs, and check the built bundle for regressions (e.g., dual-React: `grep -c '"18\.3\.1"' entry-*.js` must be 0).
 4. Ask the user to test on `https://dev.myphysio.care` (phone testing matters for PWA/offline features). Do not promote to prod without user sign-off.
