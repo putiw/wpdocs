@@ -1,10 +1,10 @@
 # myPhysio
 
-myPhysio is a physiotherapy platform with a clinician/admin web app, a patient-facing mobile app, shared packages, and Supabase backend services.
+myPhysio is a physiotherapy platform with a clinician/admin web app, a patient-facing mobile app / PWA, shared packages, and Supabase backend services.
 
 ## Agent Start Here
 
-For a contextless AI agent, this page is the starting runbook. Use it together with the local gitignored secret bundle:
+For a contextless AI agent, this page is the starting runbook. Read it fully, then read the [Agent Operations Runbook](#agent-operations-runbook) section before making any change. Use it together with the local gitignored secret bundle:
 
 ```text
 /Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/
@@ -21,7 +21,9 @@ Local secret files:
 | File | Use |
 |---|---|
 | `secrets/myphysio/README.md` | Local-only index for the secret bundle. |
-| `secrets/myphysio/info-about-myphysio.txt` | Backend SSH details and Supabase keys copied from the private desktop note. |
+| `secrets/myphysio/info-about-myphysio.txt` | Backend server details and Supabase keys. |
+| `secrets/myphysio/id_ed25519` / `id_ed25519.pub` | SSH keypair for the VPS (password auth is disabled). |
+| `secrets/myphysio/ssh-mcp.mjs` | Local MCP server exposing `run_remote` (SSH command execution on the VPS) to AI agents. |
 | `secrets/myphysio/web.env` | Environment variables for `apps/web/.env`. |
 | `secrets/myphysio/mobile.env` | Environment variables for `apps/mobile/.env`. |
 
@@ -29,10 +31,10 @@ Before using or editing secrets, verify they are ignored:
 
 ```bash
 cd /Users/pw1246/Documents/GitHub/wpdocs
-git check-ignore -v secrets/myphysio/info-about-myphysio.txt secrets/myphysio/web.env secrets/myphysio/mobile.env
+git check-ignore -v secrets/myphysio/info-about-myphysio.txt secrets/myphysio/id_ed25519
 ```
 
-Never paste passwords, service-role keys, JWTs, `.env` values, or SSH credentials into tracked docs, commits, issues, PRs, or chat output.
+Never paste passwords, service-role keys, JWTs, `.env` values, or SSH private keys into tracked docs, commits, issues, PRs, or chat output.
 
 ## What This Is
 
@@ -46,85 +48,76 @@ The main parts are:
 
 | Area | Path | Purpose |
 |---|---|---|
-| Web admin app | `apps/web` | Next.js dashboard for physiotherapists and administrators. |
-| Mobile app | `apps/mobile` | Expo/React Native app for patients and physiotherapist-facing mobile workflows. |
-| Shared library | `packages/lib` | Shared constants, types, exercise helpers, prescription helpers, and statistics logic. |
-| Design system | `packages/design-system` | Shared design tokens/components used across apps. |
+| Web admin app | `apps/web` | Next.js dashboard for physiotherapists and administrators (React 18). |
+| Mobile app / PWA | `apps/mobile` | Expo/React Native app for patients and physio mobile workflows (React 19); exported as a web PWA. |
+| Shared library | `packages/lib` | Shared constants, types, exercise helpers, prescription helpers, statistics logic. |
+| Design system | `packages/design-system` | Shared design tokens/components. |
 | Supabase functions | `supabase/functions` | Reminder-related Edge Functions. |
 
-## Key App Assets
+## Live Domains
 
-Editable logo/source assets are in the landing page asset folder:
+| Domain | Serves | From |
+|---|---|---|
+| `myphysio.care` | Public landing page + APK download | `/var/www/myphysio/landing` (static) |
+| `admin.myphysio.care` | Next.js admin dashboard | PM2 process `myphysio-web`, port 3000, behind nginx |
+| `app.myphysio.care` | **Production** patient PWA (Expo web export) | `/var/www/myphysio-app` → symlink into `/var/www/myphysio-app-releases/<ts>` |
+| `dev.myphysio.care` | **Dev/testing** patient PWA | `/var/www/myphysio-app-dev` → symlink into `/var/www/myphysio-app-dev-releases/<ts>` |
 
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/logo_v3.ai
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/logo_v2.1.ai
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/logo_v2.ai
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/logo_v2.svg
-```
+All have Let's Encrypt certificates (certbot).
 
-Related editable landing-page artwork:
+## Branch & Deploy Model
 
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/banner_v2.ai
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/banner_v2.svg
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/hero_without_logo.ai
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/landing-page/assets/tab.ai
-```
+**Branches:** `dev` is the working branch; `main` is production. Ship by fast-forwarding: `git push origin dev:main`.
 
-Generated mobile/PWA icon targets are in the Expo app:
+**Production deploys are pull-based.** There is NO GitHub Actions deploy anymore (the runner→VPS SSH was unreliable; the workflow file was deleted). Instead a cron poller on the VPS checks `origin/main` every minute and self-deploys on change:
 
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/assets/images/icon.png
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/assets/images/splash-icon.png
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/assets/images/favicon-32.png
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/pwa-icons/icon-192.png
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/pwa-icons/icon-512.png
-```
-
-`apps/mobile/app.json` currently points the Expo app icon and Android adaptive foreground image at `./assets/images/icon.png`, the splash image at `./assets/images/splash-icon.png`, and the web favicon at `./assets/images/favicon-32.png`. If changing the brand mark, edit/export from the `.ai` source and regenerate these PNG targets. The in-app header logo is rendered as text in `apps/mobile/components/PhysioHeader.tsx`, not as an image.
-
-An older duplicate source set exists at:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-Admin-Frontend/landing-page/assets/
-```
-
-As of 2026-07-03, local searches across Documents, Desktop, and Downloads did not find another separate myPhysio logo source file outside the merged repo and older duplicate repo.
-
-## My Role
-
-- Maintained the merged project repo and application structure.
-- Added clinician-facing workflows for patients, exercises, prescriptions, logs, and program management.
-- Added patient/mobile workflows for assigned exercises, workout tracking, notifications, and app feedback.
-- Maintained deployment notes and build scripts for web and mobile delivery.
-- Kept private deployment credentials and Supabase secrets out of git-facing documentation.
-
-## Systems Involved
-
-| System | Purpose |
+| Piece | Location |
 |---|---|
-| Next.js web app | Clinician/admin dashboard, authentication, exercise management, patient management, and program workflows. |
-| Expo mobile app | Patient exercise experience, body map/pain views, workout counter, physio/patient role flows, and mobile notifications. |
-| Supabase | Auth, PostgreSQL data, storage, client APIs, service-role operations, and Edge Functions. |
-| Hostinger/VPS | Backend/server deployment and automated mobile APK build/deployment scripts. |
-| Vercel | Optional/referenced deployment target for the web admin app. |
-| Public site/downloads | Landing page assets and Android APK download endpoint. |
+| Poller script | `/root/myphysio-deploy-poller.sh` (flock-guarded, runs `deploy.sh`) |
+| Cron entry | `* * * * *` in root's crontab |
+| Deploy log | `/var/log/myphysio-deploy.log` (look for `deploying <sha>` / `finished rc=0`) |
+| Prod checkout | `/var/www/myphysio-monorepo` (branch `main`) |
+| Prod deploy script | `deploy.sh` (repo root): pull, pnpm install, build, PM2 reload, expo export, SW build-ID injection, gzip+brotli precompress, atomic symlink switch |
 
-## Main Workflows
+**Dev deploys are manual.** From the dev checkout on the server:
 
-| Workflow | Notes |
-|---|---|
-| Web admin dashboard | Manage users/patients, exercises, programs, prescriptions, logs, analytics, and profile details. |
-| Mobile patient app | Show assigned exercises, body map, program progress, statistics, workout counter, and exercise completion feedback. |
-| Physiotherapist mobile views | Role selection, patient list/details, patient logs, program creation/management, exercise creation, and stats. |
-| Video/exercise media | Exercise media support includes larger video uploads and optional sound feedback in the mobile flow. |
-| Notifications/reminders | Supabase Edge Functions include `send-reminders` and `send-manual-reminder`. |
-| Android build delivery | Mobile README records automated Android builds on the VPS and APK serving from `https://myphysio.care/downloads/myphysio.apk`. |
+```bash
+cd /var/www/myphysio-monorepo-dev   # branch: dev
+bash deploy-dev.sh                   # PWA only (no PM2/web-admin steps), ~2 min
+```
+
+**Rollback:** releases are kept in `/var/www/myphysio-app-releases/`; point the symlink back at a known-good release:
+
+```bash
+ln -sfn /var/www/myphysio-app-releases/<known-good-ts> /var/www/myphysio-app
+```
+
+`index.html` and `sw.js` are served no-cache, so clients pick up a rollback on next load.
+
+## Backend Server Access
+
+- Host: see `secrets/myphysio/info-about-myphysio.txt` (root@VPS).
+- **Password SSH is disabled** (`/etc/ssh/sshd_config.d/00-hardening.conf`). Auth is via the ed25519 key in the secret bundle.
+- Human access: `ssh myphysio` (via `~/.ssh/config` Host entry) or `ssh -i secrets/myphysio/id_ed25519 root@<host>`.
+- Agent access: the `myphysio-ssh` local MCP server (`secrets/myphysio/ssh-mcp.mjs`, registered in the Claude desktop config) provides a `run_remote` tool. It prefers the key and needs no interaction.
+- Emergency: Hostinger web console (browser-based) if keys are ever lost.
+- fail2ban/ufw are NOT enabled; the security posture is key-only SSH.
+
+## Frontend Architecture Notes (PWA)
+
+These were added over time and are easy to break if you don't know they exist:
+
+- **Service worker** (`apps/mobile/public/sw.js`): app-shell precache (build ID + entry bundle injected at deploy time by `deploy.sh`/`deploy-dev.sh` via `sed`), cache-first for `/_expo/`, `/assets/`, `/fonts/`, `/pwa/`, network-first navigations with offline fallback, Supabase video/media caching with Range support, push notifications. Only complete (200) responses are cached — media Range requests return 206 which the Cache API rejects.
+- **Snapshot cache** (`apps/mobile/context/GlobalData.tsx`): the last successful fetch is persisted to AsyncStorage; startup hydrates from it instantly while Supabase refreshes in the background (`syncing` state in context). Role/profile state is only committed after a successful fetch — never regress this, it prevents the offline "empty account" bug.
+- **Offline write queue / outbox** (`apps/mobile/lib/outbox.ts`): exercise completions and pain levels are enqueued as idempotent upserts, flushed on launch/reconnect/before refresh, and overlaid on both snapshot hydration and fresh fetches so queued writes never visually disappear. Workout logs (`hooks/useWorkoutCounter.ts`) use a `synced` flag with retry-on-reconnect instead.
+- **Startup splash**: inline HTML/CSS overlay in `apps/mobile/app/+html.tsx` (logo `public/assets/logo_startup.svg` + shimmer), minimum 800 ms display, hidden by `app/index.tsx` when data is ready (helpers in `components/bootSplash.ts`). On web the overlay is the ONLY splash — `index.tsx` renders `null` beneath it; native uses `components/BrandedSplash.tsx` (Reanimated + `SvgXml`, logo XML in `components/logoStartupXml.ts` — Illustrator CSS classes must stay inlined as attributes).
+- **Fonts**: web loads self-hosted woff2 from `apps/mobile/public/fonts/` without blocking first paint; native uses the bundled TTFs. Blocking render on fonts was a major startup cost — don't reintroduce it.
+- **Metro React pin** (`apps/mobile/metro.config.js`): `react`/`react-dom` are force-resolved to the mobile app's copies. The monorepo also contains React 18 (`apps/web`), and pnpm's hidden hoist folder (`node_modules/.pnpm/node_modules`) can expose it to Metro depending on install order, silently bundling two Reacts → runtime crash (React error #525, blank screen). **Never remove this pin.** After any build, sanity check: `grep -c '"18\.3\.1"' <entry bundle>` should be 0.
+- **nginx**: gzip (`/etc/nginx/conf.d/gzip.conf`) + brotli (`/etc/nginx/conf.d/brotli.conf`, module installed) with `gzip_static`/`brotli_static` serving deploy-time precompressed files. Hashed assets are cached immutable 30d; `index.html` and `sw.js` are no-cache.
 
 ## Local Development
 
-Restore local environment files from the ignored `wpdocs` secret bundle if they are missing:
+Restore local env files from the ignored secret bundle if missing:
 
 ```bash
 cp /Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/web.env /Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/.env
@@ -140,194 +133,13 @@ pnpm --filter @myphysio/web dev
 pnpm --filter @myphysio/mobile dev
 ```
 
-Useful checks:
+Useful checks: `pnpm build`, `pnpm lint`, `pnpm type-check` (or `npx tsc --noEmit` inside `apps/mobile`).
 
-```bash
-pnpm build
-pnpm lint
-pnpm type-check
-```
-
-The mobile app can also be started from `apps/mobile` with:
-
-```bash
-npx expo start
-```
-
-## Backend Server Access and Deployment
-
-Backend SSH credentials are local-only. Read them from:
-
-```text
-/Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/info-about-myphysio.txt
-```
-
-The original private note is still at:
-
-```text
-/Users/pw1246/Desktop/log/info/info about myphysio.txt
-```
-
-Expected server checkout used by the GitHub Actions deployment workflow:
-
-```text
-/var/www/myphysio-monorepo
-```
-
-The workflow in `.github/workflows/deploy.yml` connects with GitHub Actions secrets, then runs:
-
-```bash
-cd /var/www/myphysio-monorepo
-git pull origin main
-bash deploy.sh
-```
-
-Root deployment script:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/deploy.sh
-```
-
-Important deployment facts from the root script:
-
-| Setting | Value |
-|---|---|
-| Web PM2 process | `myphysio-web` |
-| Web port | `3000` |
-| Clinician/admin dashboard domain | `admin.myphysio.care` |
-| Mobile web/PWA domain | `app.myphysio.care` |
-| Mobile release directory | `/var/www/myphysio-app-releases` |
-| Mobile live symlink | `/var/www/myphysio-app` |
-
-The root deploy script pulls latest code, installs pnpm dependencies, checks for web/mobile `.env` files, builds the monorepo, reloads or starts the Next.js web app with PM2, exports the Expo web build, injects PWA assets, and updates the mobile live symlink.
-
-Domain routing notes:
-
-| Domain | Serves |
-|---|---|
-| `myphysio.care` | Landing page. |
-| `admin.myphysio.care` | Next.js clinician/admin dashboard. The landing page routes clinician login/signup links here. |
-| `app.myphysio.care` | Mobile web/PWA build from the Expo app. |
-
-The `APP_DOMAIN="app.myphysio.care"` variable in the root deploy script refers to the mobile web/PWA domain, not the clinician dashboard.
-
-There is also an older/app-specific web deployment path:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/deploy.sh
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/auto_deploy.sh
-```
-
-That path builds a Docker image named `myphysio-admin`, runs a container named `myphysio-app`, and deploys landing page files to:
-
-```text
-/var/www/myphysio/landing
-```
-
-Before changing deployment, check which path is actually active on the server instead of assuming PM2 or Docker.
-
-Android APK build automation:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/scripts/build-android.sh
-```
-
-That script runs local EAS Android builds on the VPS, writes `myphysio.apk`, updates `build_history.log`, and copies the APK to public download locations, including:
-
-```text
-/var/www/myphysio/landing/downloads/myphysio.apk
-```
-
-## Scripts / Repos
-
-Project repo:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge
-```
-
-Private setup note:
-
-```text
-/Users/pw1246/Desktop/log/info/info about myphysio.txt
-```
-
-Local secret bundle for agents:
-
-```text
-/Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/
-```
-
-!!! warning "Private credentials"
-    The private setup note and local `wpdocs/secrets/myphysio/` files contain server access details and Supabase secrets. Do not copy passwords, service-role keys, `.env` values, JWTs, or SSH credentials into tracked docs.
-
-Top-level monorepo commands:
-
-```bash
-pnpm install
-pnpm dev
-pnpm build
-pnpm lint
-pnpm type-check
-```
-
-Package-specific development commands:
-
-```bash
-pnpm --filter @myphysio/web dev
-pnpm --filter @myphysio/mobile dev
-```
-
-Web app package:
-
-```text
-@myphysio/web
-```
-
-Mobile app package:
-
-```text
-@myphysio/mobile
-```
-
-## Operational Notes
-
-Environment variables are required for both apps. Keep them in local deployment environments, Vercel settings, Supabase settings, or VPS secrets, not in git.
-
-Common public client variables:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-EXPO_PUBLIC_SUPABASE_URL
-EXPO_PUBLIC_SUPABASE_ANON_KEY
-```
-
-Sensitive server-side variables:
-
-```text
-SUPABASE_SERVICE_ROLE_KEY
-```
-
-Supabase Edge Functions use Deno environment variables:
-
-```text
-SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-```
-
-Edge Function paths:
-
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/supabase/functions/send-reminders/index.ts
-/Users/pw1246/Documents/GitHub/myPhysio-merge/supabase/functions/send-manual-reminder/index.ts
-```
-
-The public Supabase project host appears in app code and env files, but the current canonical values should be read from the ignored secret bundle before debugging deployments.
+Android APK build automation: `apps/mobile/scripts/build-android.sh` (local EAS builds on the VPS, APK served from `https://myphysio.care/downloads/myphysio.apk`). iOS local-device notes: `apps/mobile/IOS_SETUP.md`.
 
 ## Supabase Map
 
-Use the ignored secret bundle for actual keys. The public docs should only describe how the app connects and which data surfaces exist.
+Use the ignored secret bundle for actual keys. Public docs only describe how the app connects.
 
 | Surface | Variables / access |
 |---|---|
@@ -336,67 +148,91 @@ Use the ignored secret bundle for actual keys. The public docs should only descr
 | Mobile app | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
 | Supabase Edge Functions | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 
-Server/admin Supabase usage appears in:
+Main tables/buckets: `patients`, `physios`, `patient_physios`, `exercices` (**note the spelling** — the exercise library table is `exercices`, not `exercises`), `prescriptions`, `patient_logs`, `body_map_pain_levels`, `exercise_completions`, `workout_logs`, `push_subscriptions`, `physio_exercise_saves`, `physio_follows`; storage bucket `exercise`.
 
-```text
-apps/web/app/actions/program-actions.ts
-apps/web/app/api/users/invite/route.ts
-apps/web/app/api/admin/create-physio/route.ts
-apps/web/app/api/video/compress/route.ts
-supabase/functions/send-reminders/index.ts
-supabase/functions/send-manual-reminder/index.ts
+Upsert conflict keys used by the offline outbox: `exercise_completions (patient_id,exercise_code,date)`, `body_map_pain_levels (patient_id,body_part,date)`.
+
+RPC/functions referenced by app code: `create_physio_record`, `invite_patient_by_email`.
+
+Edge Function paths: `supabase/functions/send-reminders/index.ts`, `supabase/functions/send-manual-reminder/index.ts`.
+
+## Agent Operations Runbook
+
+How an AI agent should work on this project. This flow has been used successfully for dozens of changes; follow it unless the user asks otherwise.
+
+### Where to make changes
+
+- The canonical working copy for changes is the **server dev checkout** `/var/www/myphysio-monorepo-dev` (branch `dev`), reached via the `myphysio-ssh` MCP `run_remote` tool. It can push to GitHub (the server has a write deploy key); the local sandbox usually cannot authenticate pushes.
+- The local clone `/Users/pw1246/Documents/GitHub/myPhysio-merge` is kept as a mirror: after pushing from the server, run locally `git fetch origin && git reset --hard origin/dev`. Check for uncommitted local user files first (`git status`) — stash or leave them untracked, never discard user work.
+- Never commit directly on the prod checkout `/var/www/myphysio-monorepo`; it only pulls `main`.
+
+### How to edit safely over SSH
+
+- For targeted edits, use a Python heredoc with exact-match anchors: `assert old in s` and `assert s.count(old) == 1` before replacing. This catches drift immediately.
+- For new files, use quoted heredocs (`<<'EOF'`). Avoid relaying base64 through the chat — it corrupts; if binary/asset transfer is unavoidable, verify with `sha256sum` after writing and prefer plain-text formats.
+- Files that exist only on the user's Mac (not pushed) are invisible to the server; process them locally and transfer as verified text.
+
+### How to test
+
+1. Type-check on the server after every change set: `cd /var/www/myphysio-monorepo-dev/apps/mobile && npx tsc --noEmit` — must be 0 errors before committing.
+2. Commit on `dev` with a descriptive message, push, then deploy to dev: `bash deploy-dev.sh` (run via `nohup ... &` and poll the log — SSH tool calls time out around 45 s).
+3. Verify the deploy: `tail /tmp/deploy-dev.log`, check the release symlink, curl key URLs, and check the built bundle for regressions (e.g., dual-React: `grep -c '"18\.3\.1"' entry-*.js` must be 0).
+4. Ask the user to test on `https://dev.myphysio.care` (phone testing matters for PWA/offline features). Do not promote to prod without user sign-off.
+
+### How to deploy to production
+
+```bash
+# from the dev checkout, after user approval:
+git push origin dev:main        # fast-forward only
+# the VPS poller deploys automatically within ~1 minute
+tail -f /var/log/myphysio-deploy.log   # wait for "finished rc=0"
 ```
 
-Main Supabase tables and buckets seen in the current code:
+Then verify prod: bundle hash matches the dev-tested one, `https://app.myphysio.care/` returns 200, brotli serving works, `pm2 ls` shows `myphysio-web` online. If broken, roll back the symlink (see Branch & Deploy Model) first, debug second.
 
-| Name | Type | Notes |
-|---|---|---|
-| `patients` | table | Patient profile records. |
-| `physios` | table | Physiotherapist profile records and activation/connect-code state. |
-| `patient_physios` | table | Patient-physio relationship records. |
-| `exercices` | table | Exercise library table; note the spelling in code. |
-| `prescriptions` | table | Assigned programs/prescriptions. |
-| `patient_logs` | table | Patient log records shown in web/mobile physio views. |
-| `body_map_pain_levels` | table | Body map pain tracking data. |
-| `exercise_completions` | table | Exercise completion tracking. |
-| `workout_logs` | table | Workout counter tracking. |
-| `push_subscriptions` | table | Push notification subscriptions. |
-| `physio_exercise_saves` | table | Saved exercise relationships for physiotherapists. |
-| `physio_follows` | table | Hub/follow relationship records. |
-| `exercise` | storage bucket | Exercise media storage. |
+### How to log / observe
 
-RPC/functions referenced by app code include:
+| What | Where |
+|---|---|
+| Prod deploys | `/var/log/myphysio-deploy.log` on the VPS |
+| Dev deploys | `/tmp/deploy-dev.log` on the VPS (transient) |
+| Admin app runtime | `pm2 logs myphysio-web`, `pm2 ls` |
+| nginx | `/var/log/nginx/access.log`, `error.log`; test config with `nginx -t` before reload |
+| SSH auth | `journalctl -u ssh` |
+| Server health | `uptime`, `df -h /`, `free -h` |
 
-```text
-create_physio_record
-invite_patient_by_email
-```
+For the user: narrate each server step and its findings in chat — they cannot see `run_remote` contents. Commit messages are the durable changelog; keep them accurate.
 
-Be careful with `apps/mobile/scripts/verify-supabase.js`: it currently checks an `exercises` table, while the active app code primarily uses `exercices`.
+### Known gotchas (learned the hard way)
 
-Mobile iOS setup has extra local-device build requirements in:
+- **Dual React / error #525**: see Metro React pin above. Any `pnpm install` can reshuffle pnpm's hidden hoist; the pin in `metro.config.js` is the defense.
+- **`exercices` spelling** in table names and code. `apps/mobile/scripts/verify-supabase.js` wrongly checks `exercises`.
+- **Cache API rejects 206** responses — never `cache.put` partial responses in `sw.js`.
+- **SW/HTML caching**: hashed assets are immutable-cached; anything not content-hashed that must update (like `sw.js`, `index.html`) needs no-cache headers in the nginx site configs.
+- **`pgrep -f` self-matches** the pattern inside the shell command that runs it; use bracket tricks like `pgrep -f "deploy[.]sh"`.
+- **Long-running server commands**: MCP SSH calls time out (~45 s); run builds with `nohup ... > log 2>&1 &` and poll.
+- **Heredocs append a trailing newline**; `truncate -s -1` when byte-exact output matters.
+- Snapshot/outbox invariants: role state only after successful fetch; overlay pending ops on any data that reaches state; snapshot cleared on sign-out.
 
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/IOS_SETUP.md
-```
+## Operational Notes
 
-Web/Vercel deployment notes are in:
+- The dev environment (`dev.myphysio.care`) shares the production Supabase project — test accounts touch real data; use dedicated test users.
+- A cert-renewal cron (certbot) handles all domains; the one-off dev-cert watcher script (`/root/dev-cert-watcher.sh`) is defunct and can be ignored.
+- Push notifications: `push_subscriptions` table + VAPID; Edge Functions `send-reminders` / `send-manual-reminder`.
+- The old app-specific Docker deploy path (`apps/web/deploy.sh`, `auto_deploy.sh`, image `myphysio-admin`) is dead — Docker runs no containers on the VPS. PM2 is the active web path.
 
-```text
-/Users/pw1246/Documents/GitHub/myPhysio-merge/apps/web/VERCEL_DEPLOYMENT.md
-```
+## Current Status (July 2026)
 
-## Current Status
-
-- The actual code is in `/Users/pw1246/Documents/GitHub/myPhysio-merge`.
-- The private operational note records the server and Supabase setup, but its secrets are intentionally excluded from this page.
-- Recent local notes record added video sound, higher video upload limits, notifications, workout counter tracking, and patient-role views for physiotherapists.
-- The repo has separate web, mobile, shared library, design-system, and Supabase function areas.
+- Branches: `dev` (working) and `main` (prod) in `github.com:my-Physio/myPhysio-merge`; stale `feature/email-confirmation` branch deleted (its unmerged email-verification work was reviewed and intentionally dropped).
+- Recent shipped work: nginx gzip+brotli with deploy-time precompression; woff2 non-blocking fonts; SW app-shell precache and offline start; instant startup from snapshot cache; offline write queue with sync-on-reconnect; prescribed-media pre-caching; GitHub-style activity heatmap on the workout counter; full-history statistics charts with per-day adherence shading; branded startup splash (min 800 ms) using `logo_startup.svg`; syncing indicator; pull-based deploys; key-only SSH.
+- Known open items / ideas: wifi-only or size-capped media pre-caching; offline edit/delete replay for already-synced workout entries; physio-side offline support; Apple Developer account → EAS iOS build + TestFlight pipeline (deferred until UI/UX polish is done).
 
 ## Resume / Log Notes
 
 - Built and maintained a full-stack physiotherapy platform spanning web admin, mobile patient experience, shared packages, and Supabase backend services.
 - Added clinician workflows for patient management, exercise/program creation, prescription management, patient logs, and analytics.
 - Added mobile workflows for exercise guidance, workout counting, statistics, notifications, and physio/patient role support.
-- Maintained deployment documentation for web hosting, Android APK generation, iOS local builds, and private server operations.
-- Handled sensitive deployment material by keeping live credentials in private notes and out of public/project documentation.
+- Engineered offline-first PWA architecture: service-worker app-shell and media caching, on-device data snapshots, idempotent offline write queue with reconnect sync.
+- Cut PWA payloads ~80% (brotli/gzip precompression, woff2 fonts, non-blocking font loading) and added a branded animated startup experience.
+- Replaced push-based CI deploys with a resilient pull-based server deploy pipeline; hardened server access to key-only SSH.
+- Handled sensitive deployment material by keeping live credentials in a local gitignored bundle, out of public/project documentation.
