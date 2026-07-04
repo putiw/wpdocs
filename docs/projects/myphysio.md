@@ -94,6 +94,8 @@ ln -sfn /var/www/myphysio-app-releases/<known-good-ts> /var/www/myphysio-app
 
 `index.html` and `sw.js` are served no-cache, so clients pick up a rollback on next load.
 
+**Release retention:** each deploy prunes old timestamped releases — **production PWA keeps the last 8**, **dev PWA keeps the last 3** (`deploy.sh` / `deploy-dev.sh` handle the pruning). This bounds disk in `*-releases/` while leaving several releases available for rollback. A prior manual server cleanup also cleared build caches (Gradle, npm, pnpm) and old stray `/var/www` app folders to free disk; if disk pressure recurs, those caches are the first place to look (`du -sh ~/.gradle ~/.npm ~/.local/share/pnpm 2>/dev/null`).
+
 ## GitHub Issue and Project Tracking
 
 Use GitHub issues plus the org-level GitHub Project as the durable development log. This is how future agents should track what was planned, implemented, reviewed, shipped, and which commit/PR did the work.
@@ -260,7 +262,7 @@ pnpm --filter @myphysio/web dev
 pnpm --filter @myphysio/mobile dev
 ```
 
-Useful checks: `pnpm build`, `pnpm lint`, `pnpm type-check` (or `npx tsc --noEmit` inside `apps/mobile`).
+Useful checks: `pnpm build`. **Caveat (known issue):** the root `pnpm type-check` and `pnpm lint` are currently **no-ops** — turbo declares the tasks but no package has a backing `type-check`/`lint` script, so they exit 0 while checking nothing. Until that's fixed, type-check directly: `cd apps/mobile && npx tsc --noEmit` (mobile is clean). Note `apps/web`'s `tsc --noEmit` currently FAILS on React 18/19 type conflicts and only builds because `next.config.js` sets `typescript.ignoreBuildErrors: true` — a tracked repo-health issue, not a green baseline. Also use `corepack pnpm` (the repo pins `pnpm@8.15.0`; a newer global pnpm against the v8 lockfile can misbehave). Mobile tests: `cd apps/mobile && npx jest`.
 
 Android APK build automation: `apps/mobile/scripts/build-android.sh` (local EAS builds on the VPS, APK served from `https://myphysio.care/downloads/myphysio.apk`). iOS local-device notes: `apps/mobile/IOS_SETUP.md`.
 
