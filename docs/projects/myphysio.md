@@ -94,6 +94,131 @@ ln -sfn /var/www/myphysio-app-releases/<known-good-ts> /var/www/myphysio-app
 
 `index.html` and `sw.js` are served no-cache, so clients pick up a rollback on next load.
 
+## GitHub Issue and Project Tracking
+
+Use GitHub issues plus the org-level GitHub Project as the durable development log. This is how future agents should track what was planned, implemented, reviewed, shipped, and which commit/PR did the work.
+
+| Item | Location |
+|---|---|
+| Development project | `https://github.com/orgs/my-Physio/projects/2` |
+| Project name | `myPhysio Development` |
+| Main monorepo issues | `https://github.com/my-Physio/myPhysio-merge/issues` |
+| Main monorepo PRs | `https://github.com/my-Physio/myPhysio-merge/pulls` |
+
+Keep the Project at the **organization** level, not repo-only. myPhysio work can span this monorepo, the older mobile/admin repos, Supabase, deployment/server work, APK/iOS work, and docs. Repo issues are still the source of truth for code work; the org Project is the cross-repo board.
+
+### Agent access
+
+Project reads/writes require GitHub's `project` token scope. If project commands fail with `INSUFFICIENT_SCOPES`, ask Puti to run:
+
+```bash
+gh auth refresh -h github.com -s project
+```
+
+Check current access:
+
+```bash
+gh auth status
+gh project view 2 --owner my-Physio --format json
+```
+
+Expected token scopes include at least `repo`, `read:org`, `workflow`, and `project`.
+
+### Standard workflow for new work
+
+1. Create or reuse a GitHub issue in the repo that owns the work. For this monorepo, default to:
+
+   ```bash
+   gh issue create --repo my-Physio/myPhysio-merge \
+     --title "<short feature/fix title>" \
+     --label enhancement \
+     --body "<problem, scope, acceptance criteria, and verification plan>"
+   ```
+
+2. Add the issue to the org Project:
+
+   ```bash
+   gh project item-add 2 --owner my-Physio \
+     --url https://github.com/my-Physio/myPhysio-merge/issues/<issue_number> \
+     --format json
+   ```
+
+3. Set the Project status:
+
+   - `Backlog`: idea exists, not ready to implement.
+   - `Ready`: scope is clear enough to start.
+   - `In progress`: an agent/human is actively working.
+   - `In review`: code is pushed to `dev` or a PR exists, but it is not production-shipped yet.
+   - `Done`: merged/promoted, verified, and no further work remains for that issue.
+
+4. Keep commits descriptive and link the issue from PRs. Use `Refs #<issue_number>` while work is in progress; use `Closes #<issue_number>` only when merging that PR should close the issue.
+
+5. After implementation, update the issue body or comment with:
+
+   - implementation date,
+   - branch,
+   - commit SHA and commit link,
+   - PR link, if one exists,
+   - exact verification commands and results,
+   - deployment state (`dev only`, `main`, or `production verified`).
+
+### After production promotion
+
+When `dev` is promoted to `main` with `git push origin dev:main`, wait for the VPS poller to deploy, then verify production. After verification, comment on the issue with the production state and close it:
+
+```bash
+gh issue comment <issue_number> --repo my-Physio/myPhysio-merge \
+  --body "Promoted to main and production on <YYYY-MM-DD>. main and dev both point to <sha>. Verified app.myphysio.care returned HTTP 200 with Last-Modified: <timestamp>."
+
+gh issue close <issue_number> --repo my-Physio/myPhysio-merge \
+  --reason completed \
+  --comment "Completed and shipped to production. Tracked in the myPhysio Development project as Done."
+```
+
+Set the Project item status to `Done`. If using `gh project item-edit`, first get the item ID from `gh project item-add` or `gh project item-list`. Current useful IDs for Project 2:
+
+| Field / option | ID |
+|---|---|
+| Project ID | `PVT_kwDODljeoc4BJyT6` |
+| Status field | `PVTSSF_lADODljeoc4BJyT6zg52M_I` |
+| Status `Backlog` | `f75ad846` |
+| Status `Ready` | `08afe404` |
+| Status `In progress` | `47fc9ee4` |
+| Status `In review` | `4cc61d42` |
+| Status `Done` | `98236657` |
+
+Example:
+
+```bash
+gh project item-edit \
+  --project-id PVT_kwDODljeoc4BJyT6 \
+  --id <project_item_id> \
+  --field-id PVTSSF_lADODljeoc4BJyT6zg52M_I \
+  --single-select-option-id 98236657
+```
+
+### Retroactive tracking
+
+If a user asks to document work that was already completed, create a completed issue anyway. Include the shipped commit/PR links and verification notes in the issue body, add it to the Project, set it to `Done`, and close it as completed. This keeps the Project useful as a historical feature ledger, not only a future to-do list.
+
+Example issue body shape:
+
+```markdown
+Implemented: 2026-07-04
+State: Shipped to production via PR #2, merged 2026-07-04 08:28 UTC.
+Production verification: app.myphysio.care returned HTTP 200 on 2026-07-04 08:36 UTC.
+
+Commit: <sha>
+Commit link: https://github.com/my-Physio/myPhysio-merge/commit/<sha>
+Pull request: https://github.com/my-Physio/myPhysio-merge/pull/<number>
+
+Summary:
+- <what changed>
+
+Verification:
+- <commands/checks run>
+```
+
 ## Backend Server Access
 
 - Host: see `secrets/myphysio/info-about-myphysio.txt` (root@VPS).
