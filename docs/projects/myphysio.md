@@ -68,9 +68,9 @@ All have Let's Encrypt certificates (certbot).
 
 ## Branch & Deploy Model
 
-**Branches:** `dev` is the working branch; `main` is production. Promote to production with a PR from `dev` to `main` so GitHub Actions can run before the VPS poller sees the change. Do not use direct `git push origin dev:main` once the `Protect main` ruleset is active.
+**Branches:** `dev` is the working branch; `main` is production. Promote to production with a PR from `dev` to `main` so GitHub Actions can run before the VPS poller sees the change. The repo is private; GitHub branch protection/rulesets for a private repo require an upgraded GitHub plan, so there is no enforced `Protect main` ruleset right now. Treat the PR flow as mandatory anyway: do not push directly to `main` or use `git push origin dev:main`.
 
-**Production deploys are pull-based.** There is NO GitHub Actions deploy anymore (the runner→VPS SSH was unreliable; the workflow file was deleted). Instead a cron poller on the VPS checks `origin/main` every minute and self-deploys on change:
+**Production deploys are pull-based.** GitHub Actions runs CI only; there is no GitHub Actions deploy job anymore (the runner→VPS SSH path was unreliable). Instead a cron poller on the VPS checks `origin/main` every minute and self-deploys on change:
 
 | Piece | Location |
 |---|---|
@@ -98,6 +98,8 @@ cd apps/web
 PORT=3001 NEXT_PUBLIC_ADMIN_BASE_PATH=/admin pm2 restart myphysio-web-dev --update-env
 ```
 
+When validating the admin build from a local Codex sandbox, `NEXT_PUBLIC_ADMIN_BASE_PATH=/admin corepack pnpm --filter @myphysio/web run build` may fail with `EPERM: operation not permitted, open '.../apps/web/.next/trace'`. That is a sandbox filesystem permission issue from Next.js writing build trace/cache files, not a TypeScript or app code error. Re-run the exact same build with escalated filesystem permission, or validate on the server checkout instead. Do not treat the `.next/trace` EPERM by itself as a failed code build.
+
 **Rollback:** releases are kept in `/var/www/myphysio-app-releases/`; point the symlink back at a known-good release:
 
 ```bash
@@ -106,7 +108,7 @@ ln -sfn /var/www/myphysio-app-releases/<known-good-ts> /var/www/myphysio-app
 
 `index.html` and `sw.js` are served no-cache, so clients pick up a rollback on next load.
 
-**Release retention:** each deploy prunes old timestamped releases — **production PWA keeps the last 8**, **dev PWA keeps the last 3** (`deploy.sh` / `deploy-dev.sh` handle the pruning). This bounds disk in `*-releases/` while leaving several releases available for rollback. A prior manual server cleanup also cleared build caches (Gradle, npm, pnpm) and old stray `/var/www` app folders to free disk; if disk pressure recurs, those caches are the first place to look (`du -sh ~/.gradle ~/.npm ~/.local/share/pnpm 2>/dev/null`).
+**Release retention:** production PWA deploys create timestamped releases in `/var/www/myphysio-app-releases` and currently do **not** automatically prune old releases; this gives rollback flexibility but means disk usage should be checked periodically. Dev PWA deploys keep the last 5 releases in `/var/www/myphysio-app-dev-releases` (`deploy-dev.sh` handles that pruning). A prior manual server cleanup also cleared build caches (Gradle, npm, pnpm) and old stray `/var/www` app folders to free disk; if disk pressure recurs, those caches and old production PWA releases are the first places to look (`du -sh ~/.gradle ~/.npm ~/.local/share/pnpm /var/www/myphysio-app-releases 2>/dev/null`).
 
 ## GitHub Issue and Project Tracking
 
@@ -241,6 +243,7 @@ Verification:
 - Agent access: the `myphysio-ssh` local MCP server (`secrets/myphysio/ssh-mcp.mjs`, registered in the Claude desktop config) provides a `run_remote` tool. It prefers the key and needs no interaction.
 - Emergency: Hostinger web console (browser-based) if keys are ever lost.
 - fail2ban/ufw are NOT enabled; the security posture is key-only SSH.
+- Supabase CLI access: the VPS root account has `SUPABASE_ACCESS_TOKEN` exported in `/root/.bashrc`. The value is intentionally not documented. Because `.bashrc` returns early for non-interactive shells, agent SSH commands that need Supabase auth should first run `PS1=codex; source ~/.bashrc >/dev/null 2>&1` in the remote bash session, then run `npx supabase ...`. Never print or paste the token value.
 
 ## Frontend Architecture Notes (PWA)
 
@@ -251,6 +254,7 @@ These were added over time and are easy to break if you don't know they exist:
 - **Offline write queue / outbox** (`apps/mobile/lib/outbox.ts`): exercise completions and pain levels are enqueued as idempotent upserts, flushed on launch/reconnect/before refresh, and overlaid on both snapshot hydration and fresh fetches so queued writes never visually disappear. Workout logs (`hooks/useWorkoutCounter.ts`) use a `synced` flag with retry-on-reconnect instead.
 - **Startup splash**: inline HTML/CSS overlay in `apps/mobile/app/+html.tsx` (logo `public/assets/logo_startup.svg` + shimmer), minimum 800 ms display, hidden by `app/index.tsx` when data is ready (helpers in `components/bootSplash.ts`). `app/index.tsx` also has a 10 s hard failsafe so the route gate cannot be terminal even if global loading gets stuck. On web the overlay is the ONLY splash — `index.tsx` renders `null` beneath it; native uses `components/BrandedSplash.tsx` (Reanimated + `SvgXml`, logo XML in `components/logoStartupXml.ts` — Illustrator CSS classes must stay inlined as attributes).
 - **Supabase client fetch timeout** (`apps/mobile/lib/supabase.ts`): Supabase REST/auth/client requests use a custom `fetch` with a 15 s `AbortController` timeout. This bounds hung API calls while staying longer than the 8 s startup budget. Patient media playback uses public URLs/browser fetch/service-worker paths, not this Supabase client fetch.
+- **Exercise deck filter** (`apps/mobile/lib/exerciseDeck.ts`): the patient home deck filters prescriptions with `p.patient_visible !== false && p.status !== 'cancelled'`. Do **not** revert this to `status === 'active'`. The intent is that date-expired programs (stored status still `'active'`) remain on the patient's deck unless the physio explicitly hides them via `patient_visible = false`. Cancelling a program always hides it. The physio's derived "Completed" display label (date past end) is web-admin-only and never written back to the DB.
 - **Exercise rationale / "Why this helps"**: patient exercise pages only show this card when editable data provides a non-empty rationale (`exercices.benefit_rationale` or a per-prescription `benefitRationale` override). There is intentionally no bundled exercise-code fallback map; blank rationale means the card is hidden.
 - **Fonts**: web loads self-hosted woff2 from `apps/mobile/public/fonts/` without blocking first paint; native uses the bundled TTFs. Blocking render on fonts was a major startup cost — don't reintroduce it.
 - **Metro React pin** (`apps/mobile/metro.config.js`): `react`/`react-dom` are force-resolved to the mobile app's copies. The monorepo also contains React 18 (`apps/web`), and pnpm's hidden hoist folder (`node_modules/.pnpm/node_modules`) can expose it to Metro depending on install order, silently bundling two Reacts → runtime crash (React error #525, blank screen). **Never remove this pin.** After any build, sanity check: `grep -c '"18\.3\.1"' <entry bundle>` should be 0.
@@ -301,6 +305,10 @@ Use the ignored secret bundle for actual keys. Public docs only describe how the
 
 Main tables/buckets: `patients`, `physios`, `patient_physios`, `exercices` (**note the spelling** — the exercise library table is `exercices`, not `exercises`), `prescriptions`, `patient_logs`, `body_map_pain_levels`, `exercise_completions`, `workout_logs`, `push_subscriptions`, `physio_exercise_saves`, `physio_follows`; storage bucket `exercise`.
 
+Notable columns added in July 2026:
+- `prescriptions.patient_visible boolean NOT NULL DEFAULT true` — physio-controlled flag; when `false`, the prescription's exercises are hidden from the patient's home deck regardless of `status`. Set from the web admin program form or program history Eye/EyeOff toggle. Read by the mobile app on each sync.
+- `patient_physios.notes text` — physio-private free-text note per patient connection (nullable). Displayed and inline-edited under the patient name in the web admin Users table.
+
 Upsert conflict keys used by the offline outbox: `exercise_completions (patient_id,exercise_code,date)`, `body_map_pain_levels (patient_id,body_part,date)`.
 
 RPC/functions referenced by app code: `create_physio_record`, `invite_patient_by_email`.
@@ -343,7 +351,7 @@ gh pr merge --merge
 tail -f /var/log/myphysio-deploy.log   # wait for "finished rc=0"
 ```
 
-Then verify prod: bundle hash matches the dev-tested one, `https://app.myphysio.care/` returns 200, brotli serving works, `pm2 ls` shows `myphysio-web` online. If broken, roll back the symlink (see Branch & Deploy Model) first, debug second. Do not merge the promotion PR until CI is green.
+Then verify prod: `https://admin.myphysio.care/login` and `https://app.myphysio.care/` return 200, `/var/www/myphysio-app` points at the new timestamped release, brotli/static serving works, `pm2 ls` shows `myphysio-web` online, and the Expo web entry bundle still has `grep -c '"18\.3\.1"' entry-*.js` equal to 0. If broken, roll back the symlink (see Branch & Deploy Model) first, debug second. Do not merge the promotion PR until CI is green.
 
 ### How to log / observe
 
@@ -374,13 +382,14 @@ For the user: narrate each server step and its findings in chat — they cannot 
 - The dev environment (`dev.myphysio.care`) shares the production Supabase project — test accounts touch real data; use dedicated test users.
 - A cert-renewal cron (certbot) handles all domains; the one-off dev-cert watcher script (`/root/dev-cert-watcher.sh`) is defunct and can be ignored.
 - Push notifications: `push_subscriptions` table + VAPID; Edge Functions `send-reminders` / `send-manual-reminder`.
-- The old app-specific Docker deploy path (`apps/web/deploy.sh`, `auto_deploy.sh`, image `myphysio-admin`) is dead — Docker runs no containers on the VPS. PM2 is the active web path.
+- The old app-specific Docker/npm deploy path (`apps/web/Dockerfile`, `apps/web/deploy.sh`, `apps/web/auto_deploy.sh`, image `myphysio-admin`) is dead — Docker runs no containers on the VPS. PM2 via the root monorepo `deploy.sh` is the active web path.
 
 ## Current Status (July 2026)
 
 - Branches: `dev` (working) and `main` (prod) in `github.com:my-Physio/myPhysio-merge`; stale `feature/email-confirmation` branch deleted (its unmerged email-verification work was reviewed and intentionally dropped).
-- Recent shipped work: nginx gzip+brotli with deploy-time precompression; woff2 non-blocking fonts; SW app-shell precache and offline start; instant startup from snapshot cache with bounded startup fetches; offline write queue with sync-on-reconnect; prescribed-media pre-caching; GitHub-style activity heatmap on the workout counter; full-history statistics charts with per-day adherence shading; branded startup splash (min 800 ms, 10 s failsafe) using `logo_startup.svg`; syncing indicator; pull-based deploys; key-only SSH.
-- Known open items / ideas: wifi-only or size-capped media pre-caching; offline edit/delete replay for already-synced workout entries; physio-side offline support; Apple Developer account → EAS iOS build + TestFlight pipeline (deferred until UI/UX polish is done).
+- Recent shipped work (production): nginx gzip+brotli with deploy-time precompression; woff2 non-blocking fonts; SW app-shell precache and offline start; instant startup from snapshot cache with bounded startup fetches; offline write queue with sync-on-reconnect; prescribed-media pre-caching; GitHub-style activity heatmap on the workout counter; full-history statistics charts with per-day adherence shading; branded startup splash (min 800 ms, 10 s failsafe) using `logo_startup.svg`; syncing indicator; pull-based deploys; key-only SSH; repo-health scripts and CI checks; PR-based production promotion; YouTube exercise video links with automatic thumbnails; duplicate YouTube link support; Manage Program library panel scrolling; exercise creation modal styling/height alignment.
+- Current in-progress app work: Default Program admin tab (Issue #30) unless the project board says otherwise.
+- Known open items / ideas: patient-side toggle to show/hide individual programs on their own home screen (Issue 4b — needs `patient_program_preferences` table or similar, deferred); wifi-only or size-capped media pre-caching; offline edit/delete replay for already-synced workout entries; physio-side offline support; Apple Developer account → EAS iOS build + TestFlight pipeline (deferred until UI/UX polish is done).
 
 ## Resume / Log Notes
 
