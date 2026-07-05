@@ -269,6 +269,21 @@ cp /Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/web.env /Users/pw1246/
 cp /Users/pw1246/Documents/GitHub/wpdocs/secrets/myphysio/mobile.env /Users/pw1246/Documents/GitHub/myPhysio-merge/apps/mobile/.env
 ```
 
+Local dev-server ports are shared across the whole laptop, not just this repo.
+Before starting `next dev`, `expo start`, or any other dev server, check the
+laptop-wide convention in [Local Dev Server Ports](../systems/local-dev-servers.md)
+and the ignored live registry:
+
+```text
+/Users/pw1246/Documents/GitHub/wpdocs/secrets/local-dev-ports.md
+```
+
+Then verify the port with `lsof -nP -iTCP:<port> -sTCP:LISTEN`, claim a free
+port in that registry, and start the server with the port explicitly set. The
+usual framework defaults are `3000` for the web/admin Next.js app and `8081` for
+the mobile Expo/Metro server, but those may already be occupied by another local
+project.
+
 Install and run from the monorepo root:
 
 ```bash
@@ -276,6 +291,13 @@ cd /Users/pw1246/Documents/GitHub/myPhysio-merge
 pnpm install
 pnpm --filter @myphysio/web dev
 pnpm --filter @myphysio/mobile dev
+```
+
+If you claimed alternate ports:
+
+```bash
+corepack pnpm --filter @myphysio/web dev -- -p <web_port>
+corepack pnpm --filter @myphysio/mobile dev -- --port <mobile_port>
 ```
 
 Useful checks: use `corepack pnpm` because the repo pins `pnpm@8.15.0`; a newer global pnpm against the v8 lockfile can misbehave. Current repo-health checks are:

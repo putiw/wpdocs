@@ -2,6 +2,22 @@
 
 Personal reference documentation for neuroimaging research — everything from raw data to publication-ready figures.
 
+## Agent Quick Start
+
+If you are a brand-new AI agent, start with the page the user gave you. If they
+only pointed you at this repo, use this map:
+
+| Need | Start here |
+|---|---|
+| Project runbook, current status, deploy notes, feature history | [Projects](projects/index.md) |
+| Machine paths, systems, access conventions, local laptop coordination | [Systems](systems/index.md) |
+| Local setup, software, machines, fileshares | [Getting Started](getting-started/index.md) |
+| Reusable task procedures | [Workflows](workflows/index.md) and the pipeline sections below |
+| Short commands, troubleshooting, glossary | [Reference](reference/index.md) |
+
+For local dev servers, ports are shared across the whole laptop. Check
+[Local Dev Server Ports](systems/local-dev-servers.md) before starting one.
+
 ## What is this?
 
 A living knowledge base of **how I do things** — step-by-step procedures, code snippets, system context, and project records for neuroimaging research. Built so future-me, collaborators, and AI agents can reproduce workflows without re-discovering them from scratch.
@@ -27,7 +43,8 @@ This site has four jobs:
 | [Analysis](analysis/index.md) | GLM, RSA, ridge regression, encoding models, connectivity, searchlight |
 | [Visualization](visualization/index.md) | Freeview, surface viz, Blender, figures, 3D printing |
 | [Infrastructure](hpc/index.md) | HPC / Jubail, Docker / Singularity, scripting |
-| [Projects](projects/index.md) | ARI, CCAD epilepsy — project-specific records and workflows |
+| [Systems](systems/index.md) | Machine paths, access conventions, local laptop coordination |
+| [Projects](projects/index.md) | ARI, CCAD epilepsy, myPhysio — project-specific records and workflows |
 | [Reference](reference/index.md) | Cheatsheet, troubleshooting, glossary |
 
 ## How to use locally
