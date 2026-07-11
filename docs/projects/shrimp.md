@@ -1,0 +1,344 @@
+# Shrimp
+
+Shrimp is a calm, landscape-first aquarium breeding game built with Phaser, TypeScript, and Vite. Its design target is a soothing, low-pressure loop: watch, feed, breed, catch, move, sell, and decorate ornamental-shrimp tanks.
+
+## Agent Start Here
+
+Read this page before changing code, gameplay, deployment, or art. The source of truth remains the code and tests; this page is the durable operational and product handoff.
+
+| Item | Location |
+|---|---|
+| App repository | `/Users/pw1246/Documents/Codex/2026-07-06/i/work/shrimp-tanks-phaser` |
+| GitHub | `https://github.com/putiw/shrimp` |
+| Production | `https://fish.myphysio.care/` |
+| Hand-drawn source art | `/Users/pw1246/Documents/Claude/Projects/shrimpTank` |
+| Production build output | `/Users/pw1246/Documents/Codex/2026-07-06/i/outputs/shrimp-tanks` |
+
+Current production and `main` state as of 2026-07-12:
+
+- `6eef247` delivered the aquascape shop/storage redesign, per-instance decor, up to six tanks, Magical Tank 6, Magic Mushroom, authored decor collision/rest data, audio/UI work, death presentation, and movement fixes.
+- `9bc803d` restored native mobile drawer scrolling, made taps immediate, and predecoded shop thumbnails.
+- `a628f6f` removed the redundant Owned inventory mode. The inventory control now cycles **All ↔ Stock**.
+- The full automated suite passes: **17 test files / 85 tests**. TypeScript and the production build pass.
+- The deployed build at `fish.myphysio.care` was verified with matching build hashes, accessible artwork, working phone-sized one-tap/scroll behavior, and no browser console errors.
+
+Do not revive the old terminology “cull tank” in player-facing UI. Tanks are displayed as **Tank 1, Tank 2, … Tank 6**. Internal identifiers such as `main` and `cull` remain implementation details.
+
+### Repository safety
+
+At the time of the 2026-07-12 read-only review, the game repo had these preserved untracked local items:
+
+```text
+.codex-shrimp-doc.md
+GENETICS_INTEGRATION_NOTE.md
+dist-local/
+```
+
+They were not created, changed, staged, or removed by the review agents. Do not reset, clean, or overwrite user work. Do not edit the source-art directory unless Puti explicitly asks.
+
+## Current Player Experience
+
+### Tanks and progression
+
+- A new game owns Tank 1 and Tank 2. New tanks are purchased from the aquascape shop, up to six total.
+- Tank purchase prices rise in 300 AED steps. Tank 6 is the Magical Tank.
+- Shrimp in the Magical Tank are frozen biologically: they do not breed, age, or die. Movement and feeding continue.
+- The direct shrimp-selling action unlocks after 20 transfers into Tank 2.
+- The aquascape shop permanently unlocks once the player reaches 30 AED.
+- With three or more tanks, caught shrimp go into a bucket and can then be transferred to a chosen tank.
+- Catching is guaranteed at 40 or more shrimp in the active tank. Below 40, a shrimp may escape, but an escaping shrimp remains catchable.
+
+### Aquascape shop and decor
+
+- `sell.png`/`shop.png` are the direct sell-shrimp action. `decor.png` opens the combined shop and storage drawer.
+- The wallet appears while selling and while the aquascape drawer is open.
+- The compact drawer uses an inventory toggle (**All ↔ Stock**), a type toggle, and a global Remove mode.
+- Players cannot resell purchased decor. Removing an item returns that same instance to storage.
+- Each tank can hold at most 20 placed decor instances; storage is unlimited.
+- V1 decor transforms are translation within the valid placement zone and horizontal flip only.
+- Sand decor uses authored `*b.png` contact/collision masks. Disconnected base regions and transparent passages are intentional.
+- Authored `*r.png` paths are preferred resting surfaces. Both adult and young shrimp may use them.
+- A shrimp must never switch in front of/behind an object while its sprite overlaps the visible decor, regardless of the smaller base collision mask.
+- Built-in tall grass is visual-only. It is not a rest surface, collision object, or traversal route.
+- Floating plants are pass-through decor constrained to the waterline.
+- Newly placed sand decor chooses a comparatively open position and plays a short water-drop/wobble animation. Floating plants skip the drop.
+
+Current decor is data-driven in `src/game/decor.ts`. The catalog includes eight rocks, two driftwood pieces, three bamboo pieces, Sunken Ship, Elephant Statue, Ancient Pantheon, Guardian Lion, floating plants, and Magic Mushroom.
+
+Decor effects are deliberately hidden from players. Flavor text may hint at preferences, but the actual effects should not be exposed. Repeated effects use capped/diminishing stacking and apply only while placed in a tank.
+
+Important audit note: the environment system calculates `breedingComfortBonus`, but the current breeding path does not consume it. Treat that as a confirmed incomplete mechanic, not as a working player benefit.
+
+### Magic Mushroom
+
+- The Magic Mushroom costs 666 AED and its catalog description is exactly **“Enlightens a shrimp”**.
+- An unused mushroom must be placed onto a shrimp. That shrimp becomes immortal, stays at prime age, and can breed normally forever.
+- Used and unused mushrooms appear separately in inventory. A used mushroom remains ordinary movable/storable decor but cannot enlighten a second shrimp.
+- An enlightened shrimp uses the authored mushroom-eye overlays, alternating at randomized 1–5 second intervals.
+
+### Lifecycle and presentation
+
+- Shrimp have sex, maturity, pregnancy, inherited DNA, individual body traits, chronological age, and scheduled death.
+- Aged death has its own top-layer authored dead-leg/eye frame. The shrimp flips vertically, sinks with damped lateral sway, rests on the sand for one second, then fades.
+- Immortal shrimp and shrimp in the Magical Tank do not enter the aged-death presentation.
+- Open-water shrimp always animate swimming legs. A stuck monitor redirects a shrimp that makes no progress in open water for roughly 2.4 seconds.
+- Fast-swim front/upper leg alternation runs at 1.5× its former animation rate without changing movement speed.
+
+### Saving
+
+- There are two manual browser save slots.
+- IndexedDB (`shrimp-aquarium-saves`) is primary; localStorage keys `shrimp-save-v1` and `shrimp-save-v1-slot-2` are compatibility backups.
+- Saves include simulation state and authoritative decor ownership/placement. Old hardscape layout data is migration input only.
+- Loading shifts timestamps so elapsed real-world time is not simulated offline.
+- **There is currently no autosave or automatic resume.** Closing or background-terminating the app can lose progress since the last manual save.
+- **Start Over is destructive and currently has no confirmation step.**
+
+## Architecture
+
+| Path | Responsibility |
+|---|---|
+| `src/game/simulation.ts` | Simulation, lifecycle, movement, feeding, breeding, transfers, economy, tanks, save migration, decor effects |
+| `src/game/genetics.ts` | 88-base genome, phenotype, inheritance, mutation, breeding profiles |
+| `src/game/decor.ts` | Decor catalog, prices, effects, inventory helpers, 20-per-tank rule |
+| `src/game/storage.ts` | IndexedDB save slots and localStorage backup |
+| `src/game/types.ts` | Persistent and runtime data model |
+| `src/scenes/TankScene.ts` | Phaser rendering, input, sprite assembly, depth routing, aquascape interaction |
+| `src/rendering/ShrimpColorPipeline.ts` | WebGL shrimp coloration |
+| `src/game/audio.ts` | Ambient, catch, push, sell, purchase, placement, and removal sounds |
+| `src/ui/controls.ts` | Main DOM controls and tank switching |
+| `src/ui/aquascape.ts` | Shop/storage drawer, filters, item cards, placement toolbar |
+| `scripts/generate-tank-assets.mjs` | Generated decor textures, overlap masks, base collision data, and rest paths |
+| `public/assets/` | Runtime art/audio |
+| `public/sw.js` | Service worker and release cache |
+
+The main renderer is fixed at 1864×860, WebGL, and 30 FPS. Phaser scales the landscape composition into the available viewport. High population and decoded texture/audio memory are therefore important mobile constraints.
+
+## Genetics and Breeding
+
+The runtime source of truth is `src/game/genetics.ts`; `public/dna-breeding-lab.html` imports the same helpers for inspection.
+
+The current genome is 88 ATGC-style bases:
+
+| Segment | Bases | Meaning |
+|---|---:|---|
+| Pigment | 36 | Hue, saturation, lightness |
+| Shell | 16 | Shell density/opacity and grade potential |
+| Shade | 12 | Brightness/darkness |
+| Pattern | 4 | Solid/rili expression |
+| Vigor | 4 | Fertility, fecundity, embryo survival, stability |
+| Body | 16 | Movement, size, lifespan, activity, catch/food traits |
+
+Current model constants that are easy to misdocument:
+
+- Hue tolerance: 10°
+- Hue penalty: 100%
+- Low-saturation penalty weight: 24%
+- Vigor weight: 55%
+- Grade-fertility weight: 65%
+- Rili threshold: 3 `C` alleles
+- Child-wide hue mutation: **10° standard deviation**
+- Lightness rare-mutation multiplier: **2× base chance**
+- Same-grade coherent shell drift: 5% two grades lower, 30% one lower, 40% same, 19% one higher, 6% two higher
+
+Do not copy old notes that say the child hue mutation is 5°. Confirm constants in source before documenting future tuning.
+
+### Confirmed breeding audit findings (2026-07-12)
+
+These are code-review findings, not speculative balance opinions:
+
+1. A newborn is initially constructed with placeholder/random DNA-derived body traits. Inherited DNA/body traits are assigned afterward, and only one legendary-to-normal path recomputes lifespan. This can leave ordinary offspring lifespan/agility timing derived from the placeholder rather than inherited DNA.
+2. The crowded-tank breeding probability is rerolled every frame while a pair is eligible. The effective chance therefore depends on frame frequency and can become much higher than an event-level probability suggests.
+3. `breedingComfortBonus` is aggregated from decor but is not applied to breeding.
+4. Several damping, eating, and mating transitions are tied to frame updates rather than consistently normalized elapsed time. Behavior can differ with refresh/frame rate.
+5. Active-tank mating candidate scans can approach O(n²) at high populations.
+6. Biological clocks and behavior timers are not uniformly advanced between active and inactive tanks. Review this before relying on cross-tank fairness.
+
+Keep gameplay recommendations separate from those confirmed defects. Possible later design work includes lineage/diversity pressure, outside suppliers, and a legendary rainbow path; those remain product choices in GitHub issues #7 and #8.
+
+## Movement Design
+
+Movement intentionally combines slow surface grazing, fast water-column travel, food pursuit, floater resting, mate scouting, mating, touch pushing, and decor-aware depth routing.
+
+Important invariants:
+
+- Shrimp may travel through the visible water column and across shallow, middle, and deep sand.
+- A water-column shrimp must never appear fully idle; swimmer legs continue at a gentle minimum rate.
+- Procedural tall grass is draw-only and cannot support shrimp.
+- Surface targets come only from real sand, authored decor rest paths, or floating-plant roots.
+- Front/back depth changes require a valid route and cannot occur while the sprite overlaps decor.
+- Pushing a group should produce varied, slightly overlapping sounds, not a long serialized queue.
+- The simulation has an open-water no-progress recovery, but it is a safety net rather than a substitute for correct target/state logic.
+
+Confirmed review concern: ordinary shrimp do not have a lightweight overlap-separation pass. They can visually stack or move as a clump outside the special mating-pair separation logic. Any fix must remain cheap enough for dense tanks and must not create jitter.
+
+## Art Workflow
+
+Puti’s source folders deliberately include the misspelling `shirmp/`. Do not rename source folders or files without updating the copy/generation pipeline.
+
+| Source | Runtime destination |
+|---|---|
+| `shirmp/` | `public/assets/shrimp/` |
+| `decor/` | generated/cropped runtime decor under `public/assets/tank/` |
+| `tank/` | `public/assets/tank/` |
+| `icon/` | `public/assets/icon/` |
+| audio source files | `public/assets/audio/` after conversion/copy |
+
+Rules:
+
+- Preserve authored transparent PNG registration. Related visible, `b`, and `r` files share the same source canvas.
+- `*b.png` is the base-only physical/contact mask; `*r.png` authors preferred resting paths.
+- Keep transparent passages open. Some decor has multiple disconnected sand-contact regions.
+- Shrimp sprite parts must retain a common canvas/alignment.
+- Avoid accidental white matte pixels around transparent art.
+- After adding/changing decor source files, run the generator and its check; do not hand-edit generated metadata.
+- Before deployment, confirm public directories are traversable and artwork files are readable by the web server.
+
+## Local Development and Verification
+
+```bash
+cd /Users/pw1246/Documents/Codex/2026-07-06/i/work/shrimp-tanks-phaser
+npm install
+npm test
+npm run build
+npm run dev
+```
+
+Useful commands:
+
+```bash
+npm run check:tank-assets
+npm run generate:tank-assets
+npm run preview
+```
+
+Useful developer pages:
+
+| Page | Purpose |
+|---|---|
+| `/shrimp-gallery.html` | Appearance gallery |
+| `/shrimp-opacity-test.html` | Grade/opacity tuning |
+| `/dna-breeding-lab.html` | Shared-runtime DNA and inheritance lab |
+| `/movement-lab.html` | Movement and leg-animation lab |
+| `/mating-dance-lab.html` | Mating sequence lab |
+| `/lifespan-render-lab.html` | Lifecycle/death rendering checks |
+
+For a clean local PWA session, use a save namespace or `?sw-clean=1`. Local dev/preview also unregisters service workers and clears caches.
+
+Minimum release verification:
+
+1. `npm test` passes all 85 current tests.
+2. `npm run build` passes TypeScript, generated-asset validation, Vite, and service-worker update.
+3. Test one-tap controls and drawer scrolling at a phone-sized landscape viewport.
+4. Load a fresh game and a migrated save.
+5. Inspect browser console for errors.
+6. Verify representative art, manifest, and service worker return HTTP 200.
+7. Compare live `index.html` and `sw.js` hashes to the verified build.
+
+## Performance Review Notes
+
+Confirmed or strongly supported risks from the 2026-07-12 review:
+
+- Mating candidate work can scale quadratically in the active tank.
+- Some simulation behavior is frame-rate dependent.
+- The fixed 9.5-second startup animation delays entry even when assets are ready.
+- Mobile memory pressure is likely from decoded art, generated textures/thumbnails, WebGL texture residency, and audio buffers; measure on physical iPhones before choosing reductions.
+- DOM/shop work should stay event-driven; avoid per-frame DOM updates.
+
+Measure before tuning. Use Safari Web Inspector Timelines on a physical iPhone and test representative populations, including crowded tanks and repeated shop opening. Record FPS/frame time, main-thread CPU, JS heap/GC, WebGL/decoded image memory where observable, audio behavior, thermals, and recovery after backgrounding.
+
+## Product and UI Audit Priorities
+
+### Confirmed high-priority defects
+
+1. Add autosave/auto-resume and safe lifecycle handling. Manual slots alone are risky for a mobile game.
+2. Add confirmation to Start Over.
+3. Restore or replace the missing `#status` element. `TankScene` writes onboarding/progression messages to it, but `index.html` does not contain it, so those messages are invisible.
+4. Correct the affected status copy that describes the selling unlock as the aquascape unlock.
+
+### Recommendations requiring product decisions
+
+- Decide whether the 9.5-second startup sequence is a one-time brand moment, skippable, or shortened after first launch.
+- Add a quiet first-session tutorial for feed, catch/transfer, sell, shop/storage, and saves.
+- Define success/long-term goals without turning the calm aquarium into a task list.
+- Decide whether hidden decor effects should remain entirely undisclosed or receive consistent qualitative hints.
+- Create performance budgets for target iPhones and dense-tank populations.
+
+## App Store Readiness
+
+The current production game is a web PWA, not an App Store-ready iOS project. The largest missing pieces are:
+
+- no native iOS/Xcode wrapper, signing, bundle identifier, provisioning, or archive pipeline;
+- no verified native lifecycle integration for save/resume, audio interruption/backgrounding, safe areas, orientation, and low-memory recovery;
+- no autosave and no Start Over confirmation;
+- no App Store product metadata, screenshots, native icon/launch-screen set, support URL, or privacy-policy page;
+- no durable asset-rights/license ledger for user-created and third-party fonts/audio/art;
+- no completed privacy-data inventory, App Privacy answers, or privacy-manifest audit for the chosen native wrapper and dependencies;
+- incomplete accessibility audit (touch target size, contrast, text scaling/legibility, nonvisual labels, reduced motion/audio controls);
+- no documented device matrix covering current minimum iOS, older/slower supported iPhones, interruptions, offline launch, install/update, storage pressure, and long sessions.
+
+Apple requirements change. Before submission, verify current rules from Apple’s official documentation rather than treating this handoff as policy advice. Do not promise reviewer acceptance.
+
+Recommended sequence:
+
+1. Fix persistence/destructive-action safety and the missing progression status.
+2. Profile and stabilize the PWA on physical target iPhones.
+3. Choose a native wrapper strategy and make a proof-of-concept build.
+4. Complete lifecycle/audio/safe-area/accessibility work.
+5. Build the privacy, support, rights, icon, launch, screenshot, and metadata package.
+6. Run TestFlight device QA before App Review.
+
+## Deployment Runbook
+
+The game is a static release served from:
+
+```text
+https://fish.myphysio.care/
+```
+
+Known server layout:
+
+| Item | Value |
+|---|---|
+| Live symlink | `/var/www/myphysio-app-fish` |
+| Versioned releases | `/var/www/myphysio-app-fish-releases` |
+
+The older hosting handoff is at:
+
+```text
+/Users/pw1246/Documents/GitHub/myPhysio-merge/docs/pwa-hosting-handoff.md
+```
+
+Use existing approved SSH/SCP patterns. Never record credentials, private keys, or tokens here. Deploy a versioned directory, verify it, then atomically change the live symlink. Ensure macOS AppleDouble files are excluded when archiving (`COPYFILE_DISABLE=1`).
+
+Post-deployment checks:
+
+```bash
+curl -I https://fish.myphysio.care/
+curl -I https://fish.myphysio.care/sw.js
+curl -I https://fish.myphysio.care/manifest.webmanifest
+```
+
+Also confirm representative artwork, cache headers, service-worker cache revision, full-file accessibility, browser console, and byte-for-byte hashes for `index.html` and `sw.js`.
+
+## GitHub Planning
+
+Before creating work, inspect existing issues at `https://github.com/putiw/shrimp/issues` and avoid duplicate implementation trackers.
+
+- Issues #1–#5 are historical core-mechanic trackers whose acceptance scope has been delivered.
+- Issue #6 remains relevant because wellbeing/decor infrastructure is only partially connected to gameplay.
+- Issues #7 and #8 are later product/design work, not confirmed defects.
+- Issue #9 records the aquascape redesign and production rollout.
+- The consolidated 2026-07-12 audit issue is the durable queue for confirmed technical/product risks and App Store readiness.
+
+Label recommendations as recommendations. Do not present unmeasured performance suspicions, balance preferences, or possible Apple reviewer concerns as confirmed bugs.
+
+## Durable Design Constraints
+
+- Keep the tank view calm, landscape-first, and icon-led.
+- Prefer soft, short, non-sharp sounds; prevent long serialized sound queues.
+- Do not expose exact hidden decor effects.
+- Do not add offline biological simulation without an explicit product decision.
+- Preserve front/back spatial coherence around decor.
+- Preserve user art and existing save migration.
+- Do not call Tank 2 the “cull tank” in player-facing text.
+- Validate generated decor assets and file permissions before every release.
