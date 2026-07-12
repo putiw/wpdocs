@@ -19,8 +19,40 @@ Current production and `main` state as of 2026-07-12:
 - `6eef247` delivered the aquascape shop/storage redesign, per-instance decor, up to six tanks, Magical Tank 6, Magic Mushroom, authored decor collision/rest data, audio/UI work, death presentation, and movement fixes.
 - `9bc803d` restored native mobile drawer scrolling, made taps immediate, and predecoded shop thumbnails.
 - `a628f6f` removed the redundant Owned inventory mode. The inventory control now cycles **All ↔ Stock**.
-- The full automated suite passes: **17 test files / 85 tests**. TypeScript and the production build pass.
+- The production baseline passes **17 test files / 85 tests**. TypeScript and the production build pass.
 - The deployed build at `fish.myphysio.care` was verified with matching build hashes, accessible artwork, working phone-sized one-tap/scroll behavior, and no browser console errors.
+
+### Non-production stability branch (2026-07-12)
+
+Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been deployed, and must not be described as live**. Its current automated suite passes **35 test files / 207 tests**. Final production-build verification remains pending the root review.
+
+Implemented commits on the branch:
+
+| Commit | Result |
+|---|---|
+| `2da1abb` | Adds pinned CI/release validation for generated assets, TypeScript, tests, production packaging, offline references, and packaged files. |
+| `139cce1` | Restores compact status/progression feedback and corrects the selling/aquascape unlock copy. |
+| `e660518` | Requires confirmation before destructive Start Over. |
+| `8bbf50a` | Derives newborn lifecycle and behavior physiology from inherited DNA. |
+| `9a0b491` | Consumes density-based breeding rolls once per elapsed interval instead of rerolling every frame. |
+| `7028260` | Adds autosave/automatic resume with Web Locks single-writer coordination, bounded storage operations, malformed-save fallback, scene-generation guards, and transactional Start Over rollback. |
+| `9eedecb` | Aligns starter-shrimp physiology with their final DNA. |
+| `85b8134` | Replaces repeated mate-scout scans with linear per-update indexing. |
+| `491d29f` | Adds bounded ordinary-shrimp separation steering to reduce visual stacking without rigid collision. |
+| `d65f941` | Cleans up retained scene/runtime objects across load, reset, and long sessions. |
+| `36ae46b` | Normalizes continuous damping, eating, mating, and related simulation effects by elapsed time. |
+| `1809e37` | Replaces continuous menu polling with event-driven UI synchronization. |
+| `9d1a574` | Adds deterministic seeded simulation soak/invariant coverage. |
+
+The remaining stability/product queue is intentionally not folded into those implementation claims:
+
+- decide the hidden-decor-stat policy tracked in GitHub issue #11;
+- define one active/inactive-tank biological clock policy;
+- decide whether the 9.5-second startup is retained, shortened, first-launch-only, or skippable;
+- measure art/audio/WebGL memory, CPU, thermals, and battery on physical iPhones;
+- make product decisions for audio controls, accessibility, lineage/inbreeding, and legendary inheritance;
+- complete browser-level mobile E2E coverage and later native XCUITest work in issue #13;
+- choose minimum iOS, iPhone/iPad scope, bundle identifier, signing team, and wrapper approach for issue #12.
 
 Do not revive the old terminology “cull tank” in player-facing UI. Tanks are displayed as **Tank 1, Tank 2, … Tank 6**. Internal identifiers such as `main` and `cull` remain implementation details.
 
@@ -90,8 +122,9 @@ Important audit note: the environment system calculates `breedingComfortBonus`, 
 - IndexedDB (`shrimp-aquarium-saves`) is primary; localStorage keys `shrimp-save-v1` and `shrimp-save-v1-slot-2` are compatibility backups.
 - Saves include simulation state and authoritative decor ownership/placement. Old hardscape layout data is migration input only.
 - Loading shifts timestamps so elapsed real-world time is not simulated offline.
-- **There is currently no autosave or automatic resume.** Closing or background-terminating the app can lose progress since the last manual save.
-- **Start Over is destructive and currently has no confirmation step.**
+- **Production `a628f6f` has no autosave or automatic resume.** Closing or background-terminating production can lose progress since the last manual save.
+- **Production Start Over has no confirmation step.**
+- The non-production `codex/v-next-stability` branch addresses both gaps in `7028260` and `e660518`, including multi-tab ownership and reset rollback safeguards. Do not describe those protections as deployed until the branch completes review and release.
 
 ## Architecture
 
@@ -142,15 +175,15 @@ Current model constants that are easy to misdocument:
 
 Do not copy old notes that say the child hue mutation is 5°. Confirm constants in source before documenting future tuning.
 
-### Confirmed breeding audit findings (2026-07-12)
+### Confirmed breeding audit findings and implementation status (2026-07-12)
 
 These are code-review findings, not speculative balance opinions:
 
-1. A newborn is initially constructed with placeholder/random DNA-derived body traits. Inherited DNA/body traits are assigned afterward, and only one legendary-to-normal path recomputes lifespan. This can leave ordinary offspring lifespan/agility timing derived from the placeholder rather than inherited DNA.
-2. The crowded-tank breeding probability is rerolled every frame while a pair is eligible. The effective chance therefore depends on frame frequency and can become much higher than an event-level probability suggests.
+1. Production constructs newborn physiology before installing inherited DNA. Development commit `8bbf50a` fixes normal newborns, and `9eedecb` applies the same final-DNA rule to starter shrimp.
+2. Production rerolls crowded-tank breeding probability every frame while a pair is eligible. Development commit `9a0b491` consumes the roll once per elapsed interval.
 3. `breedingComfortBonus` is aggregated from decor but is not applied to breeding.
-4. Several damping, eating, and mating transitions are tied to frame updates rather than consistently normalized elapsed time. Behavior can differ with refresh/frame rate.
-5. Active-tank mating candidate scans can approach O(n²) at high populations.
+4. Production has several damping, eating, and mating transitions tied to update count. Development commit `36ae46b` normalizes the reviewed continuous effects by elapsed time.
+5. Production mating candidate scans can approach O(n²) at high populations. Development commit `85b8134` indexes mate-scout eligibility once per update.
 6. Biological clocks and behavior timers are not uniformly advanced between active and inactive tanks. Review this before relying on cross-tank fairness.
 
 Keep gameplay recommendations separate from those confirmed defects. Possible later design work includes lineage/diversity pressure, outside suppliers, and a legendary rainbow path; those remain product choices in GitHub issues #7 and #8.
@@ -169,7 +202,7 @@ Important invariants:
 - Pushing a group should produce varied, slightly overlapping sounds, not a long serialized queue.
 - The simulation has an open-water no-progress recovery, but it is a safety net rather than a substitute for correct target/state logic.
 
-Confirmed review concern: ordinary shrimp do not have a lightweight overlap-separation pass. They can visually stack or move as a clump outside the special mating-pair separation logic. Any fix must remain cheap enough for dense tanks and must not create jitter.
+Production review concern: ordinary shrimp do not have a lightweight overlap-separation pass and can visually stack outside mating. Development commit `491d29f` adds bounded separation steering; it remains non-production until the branch is reviewed and released.
 
 ## Art Workflow
 
@@ -236,24 +269,26 @@ Minimum release verification:
 
 ## Performance Review Notes
 
-Confirmed or strongly supported risks from the 2026-07-12 review:
+Confirmed or strongly supported production risks from the 2026-07-12 review:
 
-- Mating candidate work can scale quadratically in the active tank.
-- Some simulation behavior is frame-rate dependent.
+- Mating candidate work can scale quadratically in the active tank; development commit `85b8134` replaces the reviewed scout scans with linear indexing.
+- Some simulation behavior is frame-rate dependent; development commit `36ae46b` normalizes the reviewed continuous effects.
 - The fixed 9.5-second startup animation delays entry even when assets are ready.
 - Mobile memory pressure is likely from decoded art, generated textures/thumbnails, WebGL texture residency, and audio buffers; measure on physical iPhones before choosing reductions.
-- DOM/shop work should stay event-driven; avoid per-frame DOM updates.
+- Production menu synchronization continuously polls; development commit `1809e37` makes it event-driven.
+- Retained scene objects can grow across reset/load cycles; development commit `d65f941` adds runtime cleanup.
 
 Measure before tuning. Use Safari Web Inspector Timelines on a physical iPhone and test representative populations, including crowded tanks and repeated shop opening. Record FPS/frame time, main-thread CPU, JS heap/GC, WebGL/decoded image memory where observable, audio behavior, thermals, and recovery after backgrounding.
 
 ## Product and UI Audit Priorities
 
-### Confirmed high-priority defects
+### Production defects with non-production fixes in review
 
-1. Add autosave/auto-resume and safe lifecycle handling. Manual slots alone are risky for a mobile game.
-2. Add confirmation to Start Over.
-3. Restore or replace the missing `#status` element. `TankScene` writes onboarding/progression messages to it, but `index.html` does not contain it, so those messages are invisible.
-4. Correct the affected status copy that describes the selling unlock as the aquascape unlock.
+1. Autosave/auto-resume and safe lifecycle handling are implemented on the development branch in `7028260`.
+2. Start Over confirmation is implemented in `e660518`.
+3. Compact progression status and corrected unlock copy are implemented in `139cce1`.
+
+These remain production defects until the development branch passes final review and is deliberately deployed.
 
 ### Recommendations requiring product decisions
 
@@ -269,7 +304,7 @@ The current production game is a web PWA, not an App Store-ready iOS project. Th
 
 - no native iOS/Xcode wrapper, signing, bundle identifier, provisioning, or archive pipeline;
 - no verified native lifecycle integration for save/resume, audio interruption/backgrounding, safe areas, orientation, and low-memory recovery;
-- no autosave and no Start Over confirmation;
+- production lacks autosave and Start Over confirmation; reviewed web-side fixes exist on the non-production stability branch but native lifecycle integration is still required;
 - no App Store product metadata, screenshots, native icon/launch-screen set, support URL, or privacy-policy page;
 - no durable asset-rights/license ledger for user-created and third-party fonts/audio/art;
 - no completed privacy-data inventory, App Privacy answers, or privacy-manifest audit for the chosen native wrapper and dependencies;
@@ -329,6 +364,9 @@ Before creating work, inspect existing issues at `https://github.com/putiw/shrim
 - Issues #7 and #8 are later product/design work, not confirmed defects.
 - Issue #9 records the aquascape redesign and production rollout.
 - The consolidated 2026-07-12 audit issue is the durable queue for confirmed technical/product risks and App Store readiness.
+- Issue #11 tracks the unresolved hidden-decor-stat decision.
+- Issue #12 tracks the iOS wrapper and external publishing decisions.
+- Issue #13 tracks browser/mobile release automation, soak coverage, and future native XCUITest work. CI and seeded soak coverage have landed on the non-production stability branch, but browser-level mobile E2E and native coverage remain open.
 
 Label recommendations as recommendations. Do not present unmeasured performance suspicions, balance preferences, or possible Apple reviewer concerns as confirmed bugs.
 
