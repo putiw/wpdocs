@@ -24,7 +24,7 @@ Current production and `main` state as of 2026-07-12:
 
 ### Non-production stability branch (2026-07-12)
 
-Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been merged or deployed, and must not be described as live**. Its current automated suite passes **35 test files / 207 tests**. The local production build passes with five HTML entries and 66 offline-shell assets. Draft pull request [#14](https://github.com/putiw/shrimp/pull/14) is open, and GitHub Actions `verify` passed on [run 29181420794](https://github.com/putiw/shrimp/actions/runs/29181420794) after `bda1022` allowed sufficient CI time for the deterministic soak test.
+Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been merged or deployed, and must not be described as live**. Its current automated suite passes **270/270 tests**. Reviewer stress validation also passed with 300 shrimp in an inactive tank plus 300 shrimp in the active tank. The local production build passes with five HTML entries and 66 offline-shell assets. Draft pull request [#14](https://github.com/putiw/shrimp/pull/14) is open. GitHub Actions `verify` passed on [run 29181420794](https://github.com/putiw/shrimp/actions/runs/29181420794) at `bda1022`; the newer PR-head check should be read from the PR before merge rather than inferred from that earlier run.
 
 Implemented commits on the branch:
 
@@ -44,14 +44,18 @@ Implemented commits on the branch:
 | `1809e37` | Replaces continuous menu polling with event-driven UI synchronization. |
 | `9d1a574` | Adds deterministic seeded simulation soak/invariant coverage. |
 | `bda1022` | Increases the CI test timeout so the deterministic soak suite can complete reliably; the subsequent `verify` run passed. |
+| `0a6a14f` | Runs inactive-tank biological clocks at full speed and uses fair bounded movement scheduling instead of making inactive colonies biologically slower. |
+| `a8fb98d` | Replaces the fixed 9.5-second gate with readiness-based startup dismissal and allows the presentation to be skipped once safe visual readiness is reached. |
+| `715fcc5` | Defines legendary-parent offspring as fully independent new inheritance outcomes: any color, visible grade G5+, without inheriting the legendary marker. |
+| `bb76c19` | Redesigns mate scouting so a bounded 2–4 eligible males scout and target the nearest eligible female. |
+| `5669162` | Preserves valid mate-scout intent through movement recovery instead of silently discarding the courtship state. |
+| `b8db7c0` | Detects swept mate-scout arrivals so a fast movement step cannot skip across the destination and stall pairing. |
 
 The remaining stability/product queue is intentionally not folded into those implementation claims:
 
 - decide the hidden-decor-stat policy tracked in GitHub issue #11;
-- define one active/inactive-tank biological clock policy;
-- decide whether the 9.5-second startup is retained, shortened, first-launch-only, or skippable;
 - measure art/audio/WebGL memory, CPU, thermals, and battery on physical iPhones;
-- make product decisions for audio controls, accessibility, lineage/inbreeding, and legendary inheritance;
+- make product decisions for audio controls, accessibility, lineage/inbreeding, and the longer-term rare legendary discovery path;
 - complete browser-level mobile E2E coverage and later native XCUITest work in issue #13;
 - choose minimum iOS, iPhone/iPad scope, bundle identifier, signing team, and wrapper approach for issue #12.
 
@@ -185,7 +189,8 @@ These are code-review findings, not speculative balance opinions:
 3. `breedingComfortBonus` is aggregated from decor but is not applied to breeding.
 4. Production has several damping, eating, and mating transitions tied to update count. Development commit `36ae46b` normalizes the reviewed continuous effects by elapsed time.
 5. Production mating candidate scans can approach O(n²) at high populations. Development commit `85b8134` indexes mate-scout eligibility once per update.
-6. Biological clocks and behavior timers are not uniformly advanced between active and inactive tanks. Review this before relying on cross-tank fairness.
+6. Production biological clocks and behavior timers are not uniformly advanced between active and inactive tanks. Development commit `0a6a14f` applies full biological clocks and fair bounded movement scheduling across inactive tanks.
+7. Legendary-parent inheritance previously had conflicting paths. Development commit `715fcc5` makes each offspring an independent any-color, G5+ non-legendary result. This resolves the parent-offspring contract but does not complete the future rare legendary-discovery design in issue #8.
 
 Keep gameplay recommendations separate from those confirmed defects. Possible later design work includes lineage/diversity pressure, outside suppliers, and a legendary rainbow path; those remain product choices in GitHub issues #7 and #8.
 
@@ -204,6 +209,8 @@ Important invariants:
 - The simulation has an open-water no-progress recovery, but it is a safety net rather than a substitute for correct target/state logic.
 
 Production review concern: ordinary shrimp do not have a lightweight overlap-separation pass and can visually stack outside mating. Development commit `491d29f` adds bounded separation steering; it remains non-production until the branch is reviewed and released.
+
+Development mate-scout behavior is deliberately bounded: `bb76c19` selects 2–4 eligible male scouts and sends each toward the nearest eligible female. `5669162` preserves that intent through recovery, while `b8db7c0` treats a swept path across the arrival zone as arrival. Together these address long-lived courtship stalls without returning to all-pairs scouting.
 
 ## Art Workflow
 
@@ -274,7 +281,7 @@ Confirmed or strongly supported production risks from the 2026-07-12 review:
 
 - Mating candidate work can scale quadratically in the active tank; development commit `85b8134` replaces the reviewed scout scans with linear indexing.
 - Some simulation behavior is frame-rate dependent; development commit `36ae46b` normalizes the reviewed continuous effects.
-- The fixed 9.5-second startup animation delays entry even when assets are ready.
+- Production uses a fixed 9.5-second startup gate; development commit `a8fb98d` dismisses on verified visual readiness and supports safe skipping.
 - Mobile memory pressure is likely from decoded art, generated textures/thumbnails, WebGL texture residency, and audio buffers; measure on physical iPhones before choosing reductions.
 - Production menu synchronization continuously polls; development commit `1809e37` makes it event-driven.
 - Retained scene objects can grow across reset/load cycles; development commit `d65f941` adds runtime cleanup.
@@ -293,7 +300,6 @@ These remain production defects until the development branch passes final review
 
 ### Recommendations requiring product decisions
 
-- Decide whether the 9.5-second startup sequence is a one-time brand moment, skippable, or shortened after first launch.
 - Add a quiet first-session tutorial for feed, catch/transfer, sell, shop/storage, and saves.
 - Define success/long-term goals without turning the calm aquarium into a task list.
 - Decide whether hidden decor effects should remain entirely undisclosed or receive consistent qualitative hints.
@@ -368,7 +374,9 @@ Before creating work, inspect existing issues at `https://github.com/putiw/shrim
 - Issue #11 tracks the unresolved hidden-decor-stat decision.
 - Issue #12 tracks the iOS wrapper and external publishing decisions.
 - Issue #13 tracks browser/mobile release automation, soak coverage, and future native XCUITest work. CI and seeded soak coverage have landed on the non-production stability branch, but browser-level mobile E2E and native coverage remain open.
-- Draft PR #14 contains the stability branch. Its local build and CI verification pass, but it remains unmerged and undeployed.
+- Draft PR #14 contains the stability branch. Its local build passes; an earlier CI verification passed at `bda1022`, while the current head check must be confirmed on the PR before merge. It remains unmerged and undeployed.
+
+Issue #8 remains open because `715fcc5` defines what legendary parents produce; it does not implement the complete extremely rare path by which a normal breeding population first discovers a legendary rainbow shrimp.
 
 Label recommendations as recommendations. Do not present unmeasured performance suspicions, balance preferences, or possible Apple reviewer concerns as confirmed bugs.
 
