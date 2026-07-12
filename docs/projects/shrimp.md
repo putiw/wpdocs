@@ -24,7 +24,7 @@ Current production and `main` state as of 2026-07-12:
 
 ### Non-production stability branch (2026-07-12)
 
-Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been deployed, and must not be described as live**. Its current automated suite passes **35 test files / 207 tests**. Final production-build verification remains pending the root review.
+Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been merged or deployed, and must not be described as live**. Its current automated suite passes **35 test files / 207 tests**. The local production build passes with five HTML entries and 66 offline-shell assets. Draft pull request [#14](https://github.com/putiw/shrimp/pull/14) is open, and GitHub Actions `verify` passed on [run 29181420794](https://github.com/putiw/shrimp/actions/runs/29181420794) after `bda1022` allowed sufficient CI time for the deterministic soak test.
 
 Implemented commits on the branch:
 
@@ -43,6 +43,7 @@ Implemented commits on the branch:
 | `36ae46b` | Normalizes continuous damping, eating, mating, and related simulation effects by elapsed time. |
 | `1809e37` | Replaces continuous menu polling with event-driven UI synchronization. |
 | `9d1a574` | Adds deterministic seeded simulation soak/invariant coverage. |
+| `bda1022` | Increases the CI test timeout so the deterministic soak suite can complete reliably; the subsequent `verify` run passed. |
 
 The remaining stability/product queue is intentionally not folded into those implementation claims:
 
@@ -367,6 +368,7 @@ Before creating work, inspect existing issues at `https://github.com/putiw/shrim
 - Issue #11 tracks the unresolved hidden-decor-stat decision.
 - Issue #12 tracks the iOS wrapper and external publishing decisions.
 - Issue #13 tracks browser/mobile release automation, soak coverage, and future native XCUITest work. CI and seeded soak coverage have landed on the non-production stability branch, but browser-level mobile E2E and native coverage remain open.
+- Draft PR #14 contains the stability branch. Its local build and CI verification pass, but it remains unmerged and undeployed.
 
 Label recommendations as recommendations. Do not present unmeasured performance suspicions, balance preferences, or possible Apple reviewer concerns as confirmed bugs.
 
