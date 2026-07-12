@@ -24,7 +24,7 @@ Current production and `main` state as of 2026-07-12:
 
 ### Non-production stability branch (2026-07-12)
 
-Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been merged or deployed, and must not be described as live**. Its current automated suite passes **270/270 tests**. Reviewer stress validation also passed with 300 shrimp in an inactive tank plus 300 shrimp in the active tank. The local production build passes with five HTML entries and 66 offline-shell assets. Draft pull request [#14](https://github.com/putiw/shrimp/pull/14) is open. GitHub Actions `verify` passed on [run 29181420794](https://github.com/putiw/shrimp/actions/runs/29181420794) at `bda1022`; the newer PR-head check should be read from the PR before merge rather than inferred from that earlier run.
+Active development is continuing on `codex/v-next-stability`. This branch is **not production, has not been merged or deployed, and must not be described as live**. Its current automated suite passes **270/270 tests**. Reviewer stress validation also passed with 300 shrimp in an inactive tank plus 300 shrimp in the active tank. The local production build passes with five HTML entries and 66 offline-shell assets. Draft pull request [#14](https://github.com/putiw/shrimp/pull/14) is open. GitHub Actions `verify` passed at current PR head `b8db7c0` on [run 29185886116](https://github.com/putiw/shrimp/actions/runs/29185886116).
 
 Implemented commits on the branch:
 
@@ -374,7 +374,7 @@ Before creating work, inspect existing issues at `https://github.com/putiw/shrim
 - Issue #11 tracks the unresolved hidden-decor-stat decision.
 - Issue #12 tracks the iOS wrapper and external publishing decisions.
 - Issue #13 tracks browser/mobile release automation, soak coverage, and future native XCUITest work. CI and seeded soak coverage have landed on the non-production stability branch, but browser-level mobile E2E and native coverage remain open.
-- Draft PR #14 contains the stability branch. Its local build passes; an earlier CI verification passed at `bda1022`, while the current head check must be confirmed on the PR before merge. It remains unmerged and undeployed.
+- Draft PR #14 contains the stability branch. Its local build and current-head CI verification pass. It remains unmerged and undeployed.
 
 Issue #8 remains open because `715fcc5` defines what legendary parents produce; it does not implement the complete extremely rare path by which a normal breeding population first discovers a legendary rainbow shrimp.
 
